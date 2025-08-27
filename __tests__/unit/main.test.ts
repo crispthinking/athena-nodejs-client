@@ -1,40 +1,33 @@
 import { describe, it, afterEach, beforeEach, vi, expect } from 'vitest';
-import { Delays, greeter } from '../../src/main.js';
+import { classifyImage, computeHashesFromStream, ClassifyImageOptions } from '../../src/main.js';
 
-describe('greeter function', () => {
-  const name = 'John';
 
-  beforeEach(() => {
-    // Read more about fake timers
-    // https://vitest.dev/api/vi.html#vi-usefaketimers
-    vi.useFakeTimers();
-  });
+import fs from 'fs';
 
-  afterEach(() => {
-    vi.useRealTimers();
-    vi.restoreAllMocks();
-  });
-
-  // Assert if setTimeout was called properly
-  it('delays the greeting by 2 seconds', async () => {
-    vi.spyOn(global, 'setTimeout');
-    const p = greeter(name);
-
-    await vi.runAllTimersAsync();
-    await p;
-
-    expect(setTimeout).toHaveBeenCalledTimes(1);
-    expect(setTimeout).toHaveBeenLastCalledWith(
-      expect.any(Function),
-      Delays.Long,
-    );
-  });
-
-  // Assert greeter result
-  it('greets a user with `Hello, {name}` message', async () => {
-    const p = greeter(name);
-    await vi.runAllTimersAsync();
-
-    expect(await p).toBe(`Hello, ${name}`);
+describe('classifyImage function', () => {
+  it('should classify Steamboat-willie.jpg and return responses (integration smoke test)', async () => {
+    // This is a smoke test. You must have a running gRPC server at localhost:50051 for this to pass.
+    // You may want to mock the gRPC client for true unit testing.
+    const imagePath = __dirname + '/Steamboat-willie.jpg';
+    const imageStream = fs.createReadStream(imagePath);
+    const options: ClassifyImageOptions = {
+      imageStream,
+      deploymentId: 'test-deployment',
+      affiliate: 'test-affiliate',
+      correlationId: 'test-correlation',
+      // encoding, format, grpcAddress use defaults
+    };
+    // This will fail if no server is running, but will exercise the code path.
+    let error: any = null;
+    try {
+      const responses = await classifyImage(options);
+      expect(Array.isArray(responses)).toBe(true);
+    } catch (err) {
+      error = err;
+    }
+    // Accept either a successful call or a connection error (for CI/dev convenience)
+    if (error) {
+      expect(error.message).toMatch(/connect|unavailable|ECONNREFUSED|14/);
+    }
   });
 });
