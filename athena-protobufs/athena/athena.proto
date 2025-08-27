@@ -77,6 +77,10 @@ message ClassificationInput {
 
   // The image file format of the data bytes
   ImageFormat format = 5;
+
+  // Hashes of the image data, can be multiple depending on image processing
+  // (e.g. of raw bytes, jpeg image, etc.) but must be for a single image.
+  repeated ImageHash hashes = 6;
 }
 
 // The response message containing the classification results.
@@ -144,6 +148,10 @@ enum ErrorCode {
 
   // Opaque error from the classifier
   ERROR_CODE_MODEL_ERROR = 3;
+
+  // Attempt to send data for an affiliate which is not granted to the current
+  // client.
+  ERROR_CODE_AFFILIATE_NOT_PERMITTED = 4;
 }
 
 // Enumeration of supported image data encoding formats.
@@ -181,4 +189,20 @@ enum ImageFormat {
   IMAGE_FORMAT_TIFF = 15; // Covers .tiff, .tif extensions
   IMAGE_FORMAT_HDR = 16;
   IMAGE_FORMAT_PIC = 17;
+  IMAGE_FORMAT_RAW_UINT8 = 18; // Raw unsigned 8-bit image data (RGB, C order array)
+}
+
+message ImageHash {
+    // The hash value of the image data
+    string value = 1;
+
+    // The type of hash algorithm used to generate the hash value
+    HashType type = 2;
+}
+
+
+enum HashType {
+    HASH_TYPE_UNKNOWN = 0;
+    HASH_TYPE_MD5 = 1;
+    HASH_TYPE_SHA1 = 2;
 }
