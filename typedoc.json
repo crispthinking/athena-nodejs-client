@@ -1,0 +1,6 @@
+{
+  "excludeExternals": true,
+  "exclude": [
+    "src/athena/google/*"
+  ]
+}

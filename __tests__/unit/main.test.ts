@@ -11,7 +11,7 @@ describe('classifierHelper', () => {
         deploymentId: process.env.VITE_ATHENA_DEPLOYMENT_ID,
         affiliate: process.env.VITE_ATHENA_AFFILIATE,
         authentication: {
-          issuerUrl: 'https://crispthinking.auth0.com/',
+          issuerUrl: process.env.VITE_OAUTH_ISSUER,
           clientId: process.env.VITE_ATHENA_CLIENT_ID,
           clientSecret: process.env.VITE_ATHENA_CLIENT_SECRET,
           scope: 'manage:classify'
@@ -39,7 +39,7 @@ describe('classifyImage function', () => {
         deploymentId: process.env.VITE_ATHENA_DEPLOYMENT_ID,
         affiliate: process.env.VITE_ATHENA_AFFILIATE,
         authentication: {
-          issuerUrl: 'https://crispthinking.auth0.com/',
+          issuerUrl: process.env.VITE_OAUTH_ISSUER,
           clientId: process.env.VITE_ATHENA_CLIENT_ID,
           clientSecret: process.env.VITE_ATHENA_CLIENT_SECRET,
           scope: 'manage:classify'

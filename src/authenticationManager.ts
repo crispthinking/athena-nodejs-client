@@ -1,7 +1,12 @@
-
-import { clientCredentialsGrant, Configuration, discovery, refreshTokenGrant, TokenEndpointResponse } from 'openid-client';
+import {
+  clientCredentialsGrant,
+  Configuration,
+  discovery,
+  refreshTokenGrant,
+  TokenEndpointResponse,
+} from 'openid-client';
 import * as grpc from '@grpc/grpc-js';
-import { jwtDecode, JwtPayload } from "jwt-decode";
+import { jwtDecode, JwtPayload } from 'jwt-decode';
 
 /**
  * Options for configuring the AuthenticationManager.
@@ -16,8 +21,8 @@ export type AuthenticationOptions = {
   /** Whether to automatically refresh the access token. */
   autoRefresh?: boolean;
   /** OAuth scope to request. */
-  scope: 'manage:classify',
-}
+  scope: 'manage:classify';
+};
 
 /**
  * Manages OAuth authentication and token refresh for the Athena gRPC client.
@@ -42,7 +47,9 @@ export class AuthenticationManager {
    * Appends the current authentication header to the provided gRPC metadata object.
    * @param metadata The gRPC metadata to which the Authorization header will be added.
    */
-  public async appendAuthorizationToMetadata(metadata: grpc.Metadata): Promise<void> {
+  public async appendAuthorizationToMetadata(
+    metadata: grpc.Metadata,
+  ): Promise<void> {
     metadata.set('Authorization', await this.getAuthenticationHeader());
   }
 
@@ -70,20 +77,26 @@ export class AuthenticationManager {
       );
     }
 
-    if (this.tokenExpiration && this.tokenExpiration < new Date() && this.token) {
+    if (
+      this.tokenExpiration &&
+      this.tokenExpiration < new Date() &&
+      this.token
+    ) {
       if (this.token.refresh_token === undefined) {
         this.token = undefined;
       } else {
         // Attempt to refresh token.
         try {
-          this.token = await refreshTokenGrant(this.discovery, this.token.refresh_token);
+          this.token = await refreshTokenGrant(
+            this.discovery,
+            this.token.refresh_token,
+          );
           this.decoded = jwtDecode(this.token.access_token);
 
           // Calculate expiry date of jwt
           if (this.decoded && this.decoded.exp) {
             this.tokenExpiration = new Date(this.decoded.exp * 1000);
           }
-
         } catch {
           this.token = undefined;
         }
@@ -91,7 +104,10 @@ export class AuthenticationManager {
     }
 
     if (this.token === undefined) {
-      this.token = await clientCredentialsGrant(this.discovery, { audience: "crisp-athena-dev", scope: this.options.scope });
+      this.token = await clientCredentialsGrant(this.discovery, {
+        audience: 'crisp-athena-dev',
+        scope: this.options.scope,
+      });
       this.decoded = jwtDecode(this.token.access_token);
 
       // Calculate expiry date of jwt

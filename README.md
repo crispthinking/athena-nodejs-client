@@ -1,3 +1,21 @@
+# Athena NodeJS SDK
+
+This repository contains the NodeJS SDK.
+
+## Overview
+Athena is a gRPC-based image classification service designed for CSAM (Child Sexual Abuse Material) detection by Crisp. The service provides real-time image classification through bidirectional streaming with session-based deployment management and multi-affiliate support.
+
+## Features
+
+- **Real-time Classification**: Bidirectional streaming for immediate image processing
+- **Session Management**: Deployment-based grouping enables collaborative processing
+- **Multi-format Support**: Supports JPEG, PNG, WebP, TIFF, and many other image formats
+- **Compression**: Optional Brotli compression for bandwidth optimization
+- **Error Handling**: Comprehensive error codes and detailed error messages
+- **Monitoring**: Active deployment tracking and backlog monitoring
+
+## Contributing
+
 ## Regenerating the TypeScript gRPC Client
 
 This project uses [`@protobuf-ts/plugin`](https://github.com/timostamm/protobuf-ts) to generate TypeScript-native gRPC clients and message types for use with `@grpc/grpc-js`.

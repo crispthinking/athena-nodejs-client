@@ -1,0 +1,28 @@
+name: Deploy TypeDoc on GitHub pages
+
+on:
+    push:
+      branches:
+        main
+
+env:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: volta-cli/action@v4
+      - run: npm ci --no-audit
+      - run: npm run build --if-present
+      - run: npm run build:documentation
+
+      - name: Deploy to GitHub pages
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: gh-pages
+          folder: docs
+          clean: true
