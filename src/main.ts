@@ -24,7 +24,6 @@ import {
 } from './authenticationManager';
 import { computeHashesFromStream } from './hashing';
 
-
 /**
  * Options for the classifyImage method.
  * @property affiliate Optional affiliate identifier for the request.
@@ -41,7 +40,6 @@ export interface ClassifyImageOptions {
   format?: ClassifyRequest['inputs'][number]['format'];
 }
 
-
 /**
  * Options for initializing the ClassifierSdk helper.
  * @property keepAliveInterval Optional interval (ms) for keep-alive pings.
@@ -57,7 +55,6 @@ export interface ClassifierHelperOptions {
   affiliate: string;
   authentication: AuthenticationOptions;
 }
-
 
 /**
  * Event types emitted by the ClassifierSdk.
@@ -76,7 +73,6 @@ export type ClassifierEvents = {
 // export the default endpoint of csam-classification-messages.crispdev.com so library consumers may use it.
 export const defaultGrpcAddress =
   'csam-classification-messages.crispdev.com:443';
-
 
 /**
  * SDK for interacting with the Athena classification service via gRPC.

@@ -1,9 +1,9 @@
 name: Deploy TypeDoc on GitHub pages
 
 on:
-    push:
-      branches:
-        main
+  push:
+    branches:
+      main
 
 env:
 
