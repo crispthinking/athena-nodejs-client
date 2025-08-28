@@ -1,96 +1,206 @@
-
-import crypto from 'crypto';
+import { randomUUID } from 'crypto';
 import { Readable } from 'stream';
-import { ClassifyRequest, ClassificationInput, HashType, RequestEncoding, ImageFormat, ImageHash, ClassifyResponse } from './athena/athena.js';
+import { ClassifyRequest, ClassificationInput, HashType, RequestEncoding, ImageFormat, ImageHash, ClassifyResponse, Deployment } from './athena/athena.js';
 import * as grpc from '@grpc/grpc-js';
-import { IClassifierServiceClient, ClassifierServiceClient } from './athena/athena.grpc-client.js';
-
-/**
- * Computes MD5 and SHA1 hashes from a readable stream.
- * Returns the hashes and the full buffer.
- * @param stream Node.js readable stream (e.g., fs.createReadStream)
- */
-export function computeHashesFromStream(stream: Readable): Promise<{ md5: string; sha1: string; buffer: Buffer }> {
-  return new Promise((resolve, reject) => {
-    const md5 = crypto.createHash('md5');
-    const sha1 = crypto.createHash('sha1');
-    const chunks: Buffer[] = [];
-    stream.on('data', (chunk: Buffer) => {
-      md5.update(chunk);
-      sha1.update(chunk);
-      chunks.push(chunk);
-    });
-    stream.on('end', () => {
-      resolve({
-        md5: md5.digest('hex'),
-        sha1: sha1.digest('hex'),
-        buffer: Buffer.concat(chunks),
-      });
-    });
-    stream.on('error', reject);
-  });
-}
+import { IClassifierServiceClient, ClassifierServiceClient } from './athena/athena.grpc-client';
+import { EventEmitter } from 'events';
+import { Empty } from './athena/google/protobuf/empty';
+import TypedEmitter from "typed-emitter"
+import { AuthenticationOptions, AuthenticationManager } from './authenticationManager';
+import { computeHashesFromStream } from './hashing';
+import brotli from 'brotli'
 
 /**
  * Options for classifyImage
  */
 export interface ClassifyImageOptions {
+  affiliate?: string;
+  correlationId?: string;
   imageStream: Readable;
+  encoding?: ClassifyRequest['inputs'][number]['encoding'];
+  format?: ClassifyRequest['inputs'][number]['format'];
+}
+
+export interface ClassifierHelperOptions
+{
+  keepAliveInterval?: number;
+  grpcAddress?: string;
   deploymentId: string;
   affiliate: string;
-  correlationId: string;
-  encoding?: number; // RequestEncoding enum
-  format?: number;   // ImageFormat enum
-  grpcAddress?: string;
+  authentication: AuthenticationOptions
 }
 
-/**
- * Sends a ClassifyRequest to the Athena ClassifierService with image data and hashes.
- * @param options ClassifyImageOptions
- * @returns Promise resolving to the array of ClassifyResponse messages
- */
-export async function classifyImage(options: ClassifyImageOptions): Promise<ClassifyResponse[]> {
-  const {
-    imageStream,
-    deploymentId,
-    affiliate,
-    correlationId,
-    encoding = RequestEncoding.UNSPECIFIED,
-    format = ImageFormat.UNSPECIFIED,
-    grpcAddress = 'localhost:50051',
-  } = options;
-
-  const { md5, sha1, buffer } = await computeHashesFromStream(imageStream);
-
-  const hashes: ImageHash[] = [
-    { value: md5, type: HashType.MD5 },
-    { value: sha1, type: HashType.SHA1 },
-  ];
-
-  const input: ClassificationInput = {
-    affiliate,
-    correlationId,
-    encoding,
-    data: buffer,
-    format,
-    hashes,
-  };
-
-  const request: ClassifyRequest = {
-    deploymentId,
-    inputs: [input],
-  };
-
-  // Set up the gRPC client
-  const client: IClassifierServiceClient = new ClassifierServiceClient(grpcAddress, grpc.credentials.createInsecure());
-
-  return new Promise((resolve, reject) => {
-    const call = client.classify();
-    call.write(request);
-    call.end();
-    const responses: ClassifyResponse[] = [];
-    call.on('data', (response:ClassifyResponse) => responses.push(response));
-    call.on('end', () => resolve(responses));
-    call.on('error', reject);
-  });
+export type ClassifierEvents =
+{
+  error: (err: Error) => void;
+  data: (data: ClassifyResponse) => void;
+  close: () => void;
+  open: () => void;
 }
+
+// export the default endpoint of csam-classification-messages.crispdev.com so library consumers may use it.
+export const defaultGrpcAddress = 'csam-classification-messages.crispdev.com:443';
+
+export class ClassifierSdk extends (EventEmitter as new () => TypedEmitter<ClassifierEvents>) {
+  private grpcAddress: string;
+  private client: IClassifierServiceClient;
+  private classifierGrpcCall: grpc.ClientDuplexStream<ClassifyRequest, ClassifyResponse> | null = null;
+  private options: ClassifierHelperOptions;
+  private auth: AuthenticationManager;
+  private keepAlive: NodeJS.Timeout;
+  private metadata?: grpc.Metadata;
+
+  constructor({
+    grpcAddress = defaultGrpcAddress,
+    keepAliveInterval,
+    deploymentId,
+    affiliate,
+    authentication
+  }: ClassifierHelperOptions) {
+    super();
+    this.grpcAddress = grpcAddress;
+    this.client = new ClassifierServiceClient(this.grpcAddress, grpc.credentials.createSsl());
+    this.options = {
+      grpcAddress,
+      keepAliveInterval,
+      deploymentId,
+      affiliate,
+      authentication
+    };
+
+    this.auth = new AuthenticationManager(this.options.authentication);
+  }
+
+  public async listDeployments(): Promise<Deployment[]> {
+    const metadata = new grpc.Metadata();
+
+    await this.auth.appendAuthorizationToMetadata(metadata);
+
+    return new Promise<Deployment[]>((resolve, reject) => {
+      this.client.listDeployments(Empty, metadata, (err, response) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(response?.deployments || []);
+        }
+      });
+    });
+  }
+
+  public async open(): Promise<void> {
+
+    if (this.metadata === undefined)
+    {
+      this.metadata = new grpc.Metadata();
+
+      this.metadata.set('x-client-version', 'athena-nodejs-client/0.1.0');
+      this.metadata.set('x-client-language', 'nodejs');
+
+      await this.auth.appendAuthorizationToMetadata(this.metadata);
+    }
+
+    this.classifierGrpcCall = this.client.classify(this.metadata);
+
+    // Setup interval to keep the grpc client alive.
+    this.keepAlive = setInterval(async () => {
+      if (this.classifierGrpcCall) {
+        try {
+          await this.auth.appendAuthorizationToMetadata(this.metadata);
+          this.classifierGrpcCall.write({ deploymentId: this.options.deploymentId, inputs: [] });
+        } catch (error) {
+          this.emit('error', error);
+        }
+      }
+    }, this.options.keepAliveInterval ?? 10000);
+
+    this.classifierGrpcCall.on('data', (data: ClassifyResponse) => this.emit('data', data));
+    this.classifierGrpcCall.on('error', (err: Error) => this.emit('error', err));
+
+    this.classifierGrpcCall.on('end', () => {
+      if (this.keepAlive){
+        clearInterval(this.keepAlive);
+      }
+      this.classifierGrpcCall = null;
+      this.emit('close');
+    });
+
+    this.classifierGrpcCall.on('close', () => {
+      if (this.keepAlive) {
+        clearInterval(this.keepAlive);
+      }
+      this.emit('close');
+      this.classifierGrpcCall = null;
+    });
+
+    this.emit('open');
+  }
+
+  public async sendClassifyRequest(options: ClassifyImageOptions): Promise<void> {
+    if (!this.classifierGrpcCall) {
+      throw new Error('gRPC stream is not open. Call open() first.');
+    }
+    let {
+      affiliate = this.options.affiliate,
+      correlationId = randomUUID(),
+      imageStream,
+      encoding = RequestEncoding.UNSPECIFIED,
+      format = ImageFormat.UNSPECIFIED,
+    } = options;
+
+    let { md5, sha1, data } = await computeHashesFromStream(imageStream);
+
+    if (encoding == RequestEncoding.UNCOMPRESSED || encoding == RequestEncoding.UNSPECIFIED) {
+      // Handle uncompressed and compressed cases
+      const compressed = await brotli.compress(data);
+      data = Buffer.from(compressed);
+      encoding = RequestEncoding.BROTLI;
+    }
+
+    const hashes: ImageHash[] = [
+      { value: md5, type: HashType.MD5 },
+      { value: sha1, type: HashType.SHA1 },
+    ];
+
+    const input: ClassificationInput = {
+      affiliate,
+      correlationId,
+      encoding,
+      data,
+      format,
+      hashes,
+    };
+
+    const request: ClassifyRequest = {
+      deploymentId: this.options.deploymentId,
+      inputs: [input],
+    };
+
+    await new Promise<void>((resolve) =>
+    {
+      if (this.classifierGrpcCall.write(request) == false)
+      {
+        this.classifierGrpcCall.once('drain', resolve);
+      }
+      else
+      {
+        resolve();
+      }
+    });
+  }
+
+  public close(): void {
+    if (this.classifierGrpcCall) {
+      if (this.keepAlive) {
+        clearInterval(this.keepAlive);
+      }
+      this.classifierGrpcCall.end();
+      this.classifierGrpcCall = null;
+      this.emit('close');
+    }
+  }
+
+}
+
+export * from './athena/athena';
+export * from './athena/athena.grpc-client';
+export * from './hashing';
