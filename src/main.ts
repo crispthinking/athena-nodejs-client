@@ -24,8 +24,14 @@ import {
 } from './authenticationManager';
 import { computeHashesFromStream } from './hashing';
 
+
 /**
- * Options for classifyImage
+ * Options for the classifyImage method.
+ * @property affiliate Optional affiliate identifier for the request.
+ * @property correlationId Optional correlation ID for tracking the request.
+ * @property imageStream The image data as a readable stream.
+ * @property encoding Optional encoding type for the image data.
+ * @property format Optional image format.
  */
 export interface ClassifyImageOptions {
   affiliate?: string;
@@ -35,6 +41,15 @@ export interface ClassifyImageOptions {
   format?: ClassifyRequest['inputs'][number]['format'];
 }
 
+
+/**
+ * Options for initializing the ClassifierSdk helper.
+ * @property keepAliveInterval Optional interval (ms) for keep-alive pings.
+ * @property grpcAddress Optional gRPC server address.
+ * @property deploymentId Deployment ID to use for classification.
+ * @property affiliate Affiliate identifier for requests.
+ * @property authentication Authentication options for the SDK.
+ */
 export interface ClassifierHelperOptions {
   keepAliveInterval?: number;
   grpcAddress?: string;
@@ -43,6 +58,14 @@ export interface ClassifierHelperOptions {
   authentication: AuthenticationOptions;
 }
 
+
+/**
+ * Event types emitted by the ClassifierSdk.
+ * @property error Emitted when an error occurs.
+ * @property data Emitted when classification data is received.
+ * @property close Emitted when the gRPC stream is closed.
+ * @property open Emitted when the gRPC stream is opened.
+ */
 export type ClassifierEvents = {
   error: (err: Error) => void;
   data: (data: ClassifyResponse) => void;
@@ -54,6 +77,11 @@ export type ClassifierEvents = {
 export const defaultGrpcAddress =
   'csam-classification-messages.crispdev.com:443';
 
+
+/**
+ * SDK for interacting with the Athena classification service via gRPC.
+ * Emits events for data, errors, open, and close.
+ */
 export class ClassifierSdk extends (EventEmitter as new () => TypedEmitter<ClassifierEvents>) {
   private grpcAddress: string;
   private client: IClassifierServiceClient;
@@ -66,6 +94,10 @@ export class ClassifierSdk extends (EventEmitter as new () => TypedEmitter<Class
   private keepAlive: NodeJS.Timeout;
   private metadata?: grpc.Metadata;
 
+  /**
+   * Constructs a new ClassifierSdk instance.
+   * @param options Configuration options for the SDK.
+   */
   constructor({
     grpcAddress = defaultGrpcAddress,
     keepAliveInterval,
@@ -90,6 +122,10 @@ export class ClassifierSdk extends (EventEmitter as new () => TypedEmitter<Class
     this.auth = new AuthenticationManager(this.options.authentication);
   }
 
+  /**
+   * Lists available deployments from the Athena service.
+   * @returns Promise resolving to an array of deployments.
+   */
   public async listDeployments(): Promise<Deployment[]> {
     const metadata = new grpc.Metadata();
 
@@ -106,6 +142,11 @@ export class ClassifierSdk extends (EventEmitter as new () => TypedEmitter<Class
     });
   }
 
+  /**
+   * Opens a gRPC stream to the Athena classification service.
+   * Emits 'open' when ready, and sets up keep-alive and event listeners.
+   * @returns Promise that resolves when the stream is open.
+   */
   public async open(): Promise<void> {
     if (this.metadata === undefined) {
       this.metadata = new grpc.Metadata();
@@ -159,6 +200,12 @@ export class ClassifierSdk extends (EventEmitter as new () => TypedEmitter<Class
     this.emit('open');
   }
 
+  /**
+   * Sends a classify request for an image to the Athena service.
+   * @param options Options for the image classification request.
+   * @throws Error if the gRPC stream is not open.
+   * @returns Promise that resolves when the request is sent.
+   */
   public async sendClassifyRequest(
     options: ClassifyImageOptions,
   ): Promise<void> {
@@ -206,6 +253,10 @@ export class ClassifierSdk extends (EventEmitter as new () => TypedEmitter<Class
     });
   }
 
+  /**
+   * Closes the gRPC stream and cleans up resources.
+   * Emits 'close' event.
+   */
   public close(): void {
     if (this.classifierGrpcCall) {
       if (this.keepAlive) {
