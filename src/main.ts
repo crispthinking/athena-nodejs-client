@@ -8,7 +8,6 @@ import { Empty } from './athena/google/protobuf/empty';
 import TypedEmitter from "typed-emitter"
 import { AuthenticationOptions, AuthenticationManager } from './authenticationManager';
 import { computeHashesFromStream } from './hashing';
-import brotli from 'brotli'
 
 /**
  * Options for classifyImage
@@ -139,22 +138,15 @@ export class ClassifierSdk extends (EventEmitter as new () => TypedEmitter<Class
     if (!this.classifierGrpcCall) {
       throw new Error('gRPC stream is not open. Call open() first.');
     }
-    let {
+    const {
       affiliate = this.options.affiliate,
       correlationId = randomUUID(),
       imageStream,
-      encoding = RequestEncoding.UNSPECIFIED,
+      encoding = RequestEncoding.UNCOMPRESSED,
       format = ImageFormat.UNSPECIFIED,
     } = options;
 
-    let { md5, sha1, data } = await computeHashesFromStream(imageStream);
-
-    if (encoding == RequestEncoding.UNCOMPRESSED || encoding == RequestEncoding.UNSPECIFIED) {
-      // Handle uncompressed and compressed cases
-      const compressed = await brotli.compress(data);
-      data = Buffer.from(compressed);
-      encoding = RequestEncoding.BROTLI;
-    }
+    const { md5, sha1, data } = await computeHashesFromStream(imageStream, encoding);
 
     const hashes: ImageHash[] = [
       { value: md5, type: HashType.MD5 },
