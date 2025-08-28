@@ -4,6 +4,8 @@ on: [push]
 
 jobs:
   build:
+
+    environment: dev
     runs-on: ubuntu-latest
 
     steps:
@@ -13,4 +15,10 @@ jobs:
       - run: npm run lint --if-present
       - run: npm run prettier:check --if-present
       - run: npm test
+        env:
+          VITE_ATHENA_CLIENT_ID: ${{ secrets.VITE_ATHENA_CLIENT_ID }}
+          VITE_ATHENA_CLIENT_SECRET: ${{ secrets.VITE_ATHENA_CLIENT_SECRET }}
+          VITE_ATHENA_DEPLOYMENT_ID: ${{ secrets.VITE_ATHENA_DEPLOYMENT_ID }}
+          VITE_ATHENA_AFFILIATE: ${{ secrets.VITE_ATHENA_AFFILIATE }}
+          VITE_OAUTH_ISSUER: ${{ secrets.VITE_OAUTH_ISSUER }}
       - run: npm run build --if-present
