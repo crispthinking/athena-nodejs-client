@@ -27,7 +27,7 @@ describe('classifierHelper', () => {
     }
     // Assert error is unset
     expect(error).toBeNull();
-  }, { timeout: 10000 })
+  }, 10000)
 });
 
 describe('classifyImage function', () => {
@@ -90,5 +90,5 @@ describe('classifyImage function', () => {
 
     // Accept either a successful call or a connection error (for CI/dev convenience)
     expect(error).toBeUndefined();
-  }, { timeout: 120000 });
+  }, 120000);
 });
