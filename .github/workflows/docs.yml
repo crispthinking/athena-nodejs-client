@@ -25,6 +25,10 @@ jobs:
         run: uv python install
       - name: Install dependencies
         run: uv sync --locked --all-extras
+      - name: Use volta
+        uses: volta-cli/action@v4
+      - name: Install NPM
+        run: npm ci --no-audit
       - name: Build documentation
         run: |
           cd docs
