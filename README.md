@@ -14,7 +14,14 @@ Athena is a gRPC-based image classification service designed for CSAM (Child Sex
 - **Error Handling**: Comprehensive error codes and detailed error messages
 - **Monitoring**: Active deployment tracking and backlog monitoring
 
-## Contributing
+# Contributing
+
+## Updating the Protobuf definitions
+
+Protobufs are stored in the [@crispthinking/athena-protobuffs](https://github.com/crispthinking/athena-protobufs) repository.
+
+To update the protobuf definitions for client generation, run:
+`git subtree pull --prefix=athena-protobufs https://github.com/crispthinking/athena-protobufs.git <sha> --squash`
 
 ## Regenerating the TypeScript gRPC Client
 

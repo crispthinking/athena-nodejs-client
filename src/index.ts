@@ -8,6 +8,7 @@ import {
   ImageHash,
   ClassifyResponse,
   Deployment,
+  ImageFormat,
 } from './athena/athena';
 import * as grpc from '@grpc/grpc-js';
 import {
@@ -31,12 +32,20 @@ import { computeHashesFromStream } from './hashing';
  * @property encoding Optional encoding type for the image data.
  * @property format Optional image format.
  */
-export interface ClassifyImageInput {
+export type ClassifyImageInput = {
   affiliate?: string;
   correlationId?: string;
   imageStream: Readable;
   encoding?: ClassifyRequest['inputs'][number]['encoding'];
-}
+} & (ResizeImageInput | RawImageInput);
+
+export type ResizeImageInput = {
+  resize: true;
+};
+
+export type RawImageInput = {
+  format: ClassifyRequest['inputs'][number]['format'];
+};
 
 /**
  * Options for initializing the ClassifierSdk.
@@ -217,6 +226,7 @@ export class ClassifierSdk extends (EventEmitter as new () => TypedEmitter<Class
       : [request];
 
     const processedInputs: ClassificationInput[] = [];
+
     for (const options of requests) {
       const {
         affiliate = this.options.affiliate,
@@ -225,9 +235,17 @@ export class ClassifierSdk extends (EventEmitter as new () => TypedEmitter<Class
         encoding = RequestEncoding.UNCOMPRESSED,
       } = options;
 
+      let inputFormat: ImageFormat = ImageFormat.UNSPECIFIED;
+
+      if ('resize' in options === false) {
+        inputFormat = options.format;
+      }
+
       const { md5, sha1, data, format } = await computeHashesFromStream(
         imageStream,
         encoding,
+        inputFormat,
+        'resize' in options,
       );
       const hashes: ImageHash[] = [
         { value: md5, type: HashType.MD5 },

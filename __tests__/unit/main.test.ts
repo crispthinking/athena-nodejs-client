@@ -123,6 +123,83 @@ describe('classifyImage function', () => {
     expect(outputs).toMatchObject(expectedOutputs);
   }, 120000);
 
+  it('should classify Steamboat-willie.jpg with raw uint8 resize return responses (integration smoke test)', async ({expect, annotate}) => {
+    // This is a smoke test. You must have a running gRPC server at localhost:50051 for this to pass.
+    // You may want to mock the gRPC client for true unit testing.
+    const imagePath = __dirname + '/Steamboat-willie.jpg';
+    const sdk = new ClassifierSdk({
+        deploymentId: process.env.VITE_ATHENA_DEPLOYMENT_ID,
+        affiliate: process.env.VITE_ATHENA_AFFILIATE,
+        authentication: {
+          issuerUrl: process.env.VITE_OAUTH_ISSUER,
+          clientId: process.env.VITE_ATHENA_CLIENT_ID,
+          clientSecret: process.env.VITE_ATHENA_CLIENT_SECRET,
+          scope: 'manage:classify'
+        }
+    });
+
+    const correlationId = randomUUID();
+
+    annotate(`Correlation IDs: ${correlationId}`);
+
+    // Create a promise to wrap the event emitter event 'data'
+    const promise = new Promise<ClassificationOutput[]>((resolve, reject) => {
+      // Add a timeout to reject the promise if no data is received in 30 seconds
+      const timeout = setTimeout(() => {
+        reject(new Error('Timeout waiting for classification response'));
+      }, 30000);
+
+      sdk.on('data', (data) => {
+        const byCorrelationId = data.outputs.filter(o => o.correlationId === correlationId);
+        if (byCorrelationId.length > 0) {
+          clearTimeout(timeout);
+          resolve(byCorrelationId);
+        }
+      });
+      sdk.once('error', (err) => {
+        clearTimeout(timeout);
+        reject(err);
+      });
+    });
+
+    // This will fail if no server is running, but will exercise the code path.
+    let error: any = undefined;
+
+    await sdk.open();
+
+    const imageStream = fs.createReadStream(imagePath);
+    const options: ClassifyImageInput = {
+      imageStream,
+      correlationId,
+      resize: true,
+    };
+    try {
+      await sdk.sendClassifyRequest(options);
+    } catch (err) {
+      error = err;
+    }
+
+    // Wait for classifier to process some data....
+    const first = await promise;
+    sdk.close();
+
+    expect(first).toBeDefined();
+    expect(first).toMatchObject([
+      {
+        correlationId,
+        classifications: expect.arrayContaining([
+          {
+            label: expect.any(String),
+            weight: expect.any(Number)
+          }
+        ])
+      } as ClassificationOutput
+    ]);
+
+    // Accept either a successful call or a connection error (for CI/dev convenience)
+    expect(error).toBeUndefined();
+  }, 120000);
+
   it('should classify Steamboat-willie.jpg and return responses (integration smoke test)', async ({expect, annotate}) => {
     // This is a smoke test. You must have a running gRPC server at localhost:50051 for this to pass.
     // You may want to mock the gRPC client for true unit testing.
@@ -170,7 +247,8 @@ describe('classifyImage function', () => {
     const imageStream = fs.createReadStream(imagePath);
     const options: ClassifyImageInput = {
       imageStream,
-      correlationId
+      correlationId,
+      format: ImageFormat.JPEG
     };
     try {
       await sdk.sendClassifyRequest(options);
