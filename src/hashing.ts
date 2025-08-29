@@ -1,7 +1,7 @@
 import { Readable } from 'stream';
 import crypto from 'crypto';
 import sharp from 'sharp';
-import { RequestEncoding } from './main';
+import { ImageFormat, RequestEncoding } from '.';
 import brotli from 'brotli';
 
 /**
@@ -13,10 +13,11 @@ import brotli from 'brotli';
 export async function computeHashesFromStream(
   stream: Readable,
   encoding: RequestEncoding = RequestEncoding.UNCOMPRESSED,
-): Promise<{ md5: string; sha1: string; data: Buffer }> {
+): Promise<{ md5: string; sha1: string; data: Buffer; format: ImageFormat }> {
   const md5 = crypto.createHash('md5');
   const sha1 = crypto.createHash('sha1');
-  const resizer = sharp().resize(448, 448).raw({ depth: 'uint' });
+
+  const resizer = sharp().resize(448, 448).png();
 
   stream.pipe(md5);
   stream.pipe(sha1);
@@ -32,5 +33,6 @@ export async function computeHashesFromStream(
     md5: md5.digest('hex'),
     sha1: sha1.digest('hex'),
     data,
+    format: ImageFormat.PNG,
   };
 }

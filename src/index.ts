@@ -5,11 +5,10 @@ import {
   ClassificationInput,
   HashType,
   RequestEncoding,
-  ImageFormat,
   ImageHash,
   ClassifyResponse,
   Deployment,
-} from './athena/athena.js';
+} from './athena/athena';
 import * as grpc from '@grpc/grpc-js';
 import {
   IClassifierServiceClient,
@@ -32,23 +31,22 @@ import { computeHashesFromStream } from './hashing';
  * @property encoding Optional encoding type for the image data.
  * @property format Optional image format.
  */
-export interface ClassifyImageOptions {
+export interface ClassifyImageInput {
   affiliate?: string;
   correlationId?: string;
   imageStream: Readable;
   encoding?: ClassifyRequest['inputs'][number]['encoding'];
-  format?: ClassifyRequest['inputs'][number]['format'];
 }
 
 /**
- * Options for initializing the ClassifierSdk helper.
+ * Options for initializing the ClassifierSdk.
  * @property keepAliveInterval Optional interval (ms) for keep-alive pings.
  * @property grpcAddress Optional gRPC server address.
  * @property deploymentId Deployment ID to use for classification.
  * @property affiliate Affiliate identifier for requests.
  * @property authentication Authentication options for the SDK.
  */
-export interface ClassifierHelperOptions {
+export interface ClassifierSdkOptions {
   keepAliveInterval?: number;
   grpcAddress?: string;
   deploymentId: string;
@@ -70,7 +68,6 @@ export type ClassifierEvents = {
   open: () => void;
 };
 
-// export the default endpoint of csam-classification-messages.crispdev.com so library consumers may use it.
 export const defaultGrpcAddress =
   'csam-classification-messages.crispdev.com:443';
 
@@ -85,7 +82,7 @@ export class ClassifierSdk extends (EventEmitter as new () => TypedEmitter<Class
     ClassifyRequest,
     ClassifyResponse
   > | null = null;
-  private options: ClassifierHelperOptions;
+  private options: ClassifierSdkOptions;
   private auth: AuthenticationManager;
   private keepAlive: NodeJS.Timeout;
   private metadata?: grpc.Metadata;
@@ -100,7 +97,7 @@ export class ClassifierSdk extends (EventEmitter as new () => TypedEmitter<Class
     deploymentId,
     affiliate,
     authentication,
-  }: ClassifierHelperOptions) {
+  }: ClassifierSdkOptions) {
     super();
     this.grpcAddress = grpcAddress;
     this.client = new ClassifierServiceClient(
@@ -202,46 +199,58 @@ export class ClassifierSdk extends (EventEmitter as new () => TypedEmitter<Class
    * @throws Error if the gRPC stream is not open.
    * @returns Promise that resolves when the request is sent.
    */
+  /**
+   * Sends one or more classify requests for images to the Athena service.
+   * @param request Single input or array of image classification request options.
+   * @throws Error if the gRPC stream is not open.
+   * @returns Promise that resolves when the request is sent.
+   */
   public async sendClassifyRequest(
-    options: ClassifyImageOptions,
+    request: ClassifyImageInput | ClassifyImageInput[],
   ): Promise<void> {
     if (!this.classifierGrpcCall) {
       throw new Error('gRPC stream is not open. Call open() first.');
     }
-    const {
-      affiliate = this.options.affiliate,
-      correlationId = randomUUID(),
-      imageStream,
-      encoding = RequestEncoding.UNCOMPRESSED,
-      format = ImageFormat.UNSPECIFIED,
-    } = options;
 
-    const { md5, sha1, data } = await computeHashesFromStream(
-      imageStream,
-      encoding,
-    );
+    const requests: ClassifyImageInput[] = Array.isArray(request)
+      ? request
+      : [request];
 
-    const hashes: ImageHash[] = [
-      { value: md5, type: HashType.MD5 },
-      { value: sha1, type: HashType.SHA1 },
-    ];
+    const processedInputs: ClassificationInput[] = [];
+    for (const options of requests) {
+      const {
+        affiliate = this.options.affiliate,
+        correlationId = randomUUID(),
+        imageStream,
+        encoding = RequestEncoding.UNCOMPRESSED,
+      } = options;
 
-    const input: ClassificationInput = {
-      affiliate,
-      correlationId,
-      encoding,
-      data,
-      format,
-      hashes,
-    };
+      const { md5, sha1, data, format } = await computeHashesFromStream(
+        imageStream,
+        encoding,
+      );
+      const hashes: ImageHash[] = [
+        { value: md5, type: HashType.MD5 },
+        { value: sha1, type: HashType.SHA1 },
+      ];
 
-    const request: ClassifyRequest = {
+      processedInputs.push({
+        affiliate,
+        correlationId,
+        encoding,
+        data,
+        format,
+        hashes,
+      });
+    }
+
+    const classifyRequest: ClassifyRequest = {
       deploymentId: this.options.deploymentId,
-      inputs: [input],
+      inputs: processedInputs,
     };
 
     await new Promise<void>((resolve) => {
-      if (this.classifierGrpcCall.write(request) == false) {
+      if (this.classifierGrpcCall.write(classifyRequest) == false) {
         this.classifierGrpcCall.once('drain', resolve);
       } else {
         resolve();
@@ -265,6 +274,6 @@ export class ClassifierSdk extends (EventEmitter as new () => TypedEmitter<Class
   }
 }
 
-export * from './athena/athena';
-export * from './athena/athena.grpc-client';
-export * from './hashing';
+export * from './athena/athena.js';
+export * from './athena/athena.grpc-client.js';
+export * from './hashing.js';
