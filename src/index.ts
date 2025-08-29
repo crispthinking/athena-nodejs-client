@@ -345,23 +345,6 @@ export class ClassifierSdk extends (EventEmitter as new () => TypedEventEmitter<
   }
 }
 
-export {
-  ListDeploymentsResponse,
-  Deployment,
-  ClassifyRequest,
-  ClassificationInput,
-  ClassifyResponse,
-  ClassificationOutput,
-  Classification,
-  ClassificationError,
-  ImageHash,
-  ErrorCode,
-  RequestEncoding,
-  ImageFormat,
-  HashType,
-} from './athena/athena';
-export {
-  ClassifierServiceClient,
-  IClassifierServiceClient,
-} from './athena/athena.grpc-client';
+export * from './athena/athena';
+export * from './athena/athena.grpc-client';
 export * from './hashing';
