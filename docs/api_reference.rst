@@ -36,7 +36,7 @@ Usage Example
    // Send image for classification
    await sdk.sendClassifyRequest({
      imageStream: fs.createReadStream('image.jpg'),
-     format: 'JPEG',
+     format: ImageFormats.JPEG,
    });
 
    sdk.on('data', (response) => {
