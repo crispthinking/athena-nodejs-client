@@ -9,9 +9,11 @@ node_modules/
 # Coverage
 coverage
 
-# Transpiled files
-build/
-dist/
+__tests__/**/*
+
+.github/**/*
+athena-protobufs/**/*
+samples/**/*
 
 # VS Code
 .vscode
@@ -29,5 +31,12 @@ dist/
 # Misc
 .DS_Store
 .env
-
 .venv
+.editorconfig
+.env
+.gitignore
+.prettierrc
+.eslint.config.mjs
+tsconfig.json
+tsconfig.release.json
+typedoc.json

@@ -2,13 +2,14 @@
   "compilerOptions": {
     "target": "es2022",
     "module": "preserve",
-    "lib": ["ES2022", "DOM"],
     "moduleResolution": "bundler",
     "rootDir": ".",
-    "outDir": "build",
+    "outDir": "dist",
     "allowSyntheticDefaultImports": true,
     "importHelpers": true,
     "alwaysStrict": true,
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
     "sourceMap": true,
     "declaration": true,
     "forceConsistentCasingInFileNames": true,
@@ -18,7 +19,13 @@
     "noUnusedParameters": true,
     "noImplicitAny": false,
     "noImplicitThis": false,
+    "noUncheckedSideEffectImports": true,
+    "moduleDetection": "force",
+    "noUncheckedIndexedAccess": true,
+    "strict": true,
     "strictNullChecks": false,
+    "types": ["node"],
+    "lib": ["ES2022", "DOM"]
   },
   "include": ["src", "__tests__"]
 }

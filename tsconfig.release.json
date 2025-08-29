@@ -1,9 +1,14 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    "sourceMap": false,
-    "removeComments": true
+    "sourceMap": true,
+    "removeComments": true,
+    "rootDir": "src",
+    "module": "es2022",
+    "target": "es2022",
+    "declaration": true,
+    "lib": ["ES2022"]
   },
-  "include": ["src"],
+  "include": ["src/**/*"],
   "exclude": ["**/*.test.ts", "**/*.spec.ts"]
 }

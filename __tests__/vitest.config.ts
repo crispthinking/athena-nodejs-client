@@ -2,10 +2,15 @@ import { configDefaults, coverageConfigDefaults, defineConfig } from 'vitest/con
 
 export default defineConfig({
   test: {
+    reporters: [
+      'verbose',
+      'github-actions'
+    ],
     exclude: [...configDefaults.exclude, 'build/**/*'],
     coverage: {
+      enabled: true,
       provider: 'v8',
-      exclude: [...coverageConfigDefaults.exclude, 'build/**/*']
+      exclude: [...coverageConfigDefaults.exclude, 'build/**/*','samples/**/*', 'src/athena/**/*']
     },
   },
 })

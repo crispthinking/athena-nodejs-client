@@ -1,10 +1,22 @@
 {
-  "name": "athena-classifier-sdk",
-  "version": "0.0.0",
+  "name": "@crispthinking/athena-classifier-sdk",
+  "version": "0.2.0",
+  "main": "./dist/src/index.js",
   "description": "A Node.js SDK for the Athena classifier that uses gRPC transport.",
   "type": "module",
   "engines": {
     "node": ">= 22.11 < 23"
+  },
+  "files": [
+    "dist/",
+    "README.md",
+    "LICENSE"
+  ],
+    "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "require": "./dist/index.js"
+    }
   },
   "devDependencies": {
     "@eslint/js": "~9.17",
@@ -38,7 +50,7 @@
     "build": "tsc -p tsconfig.json",
     "build:watch": "tsc -w -p tsconfig.json",
     "build:release": "npm run clean && tsc -p tsconfig.release.json",
-    "codegen": "npx protoc --plugin=protoc-gen-ts=./node_modules/.bin/protoc-gen-ts --ts_out=client_grpc1:./src/athena --proto_path=./athena-protobufs/athena ./athena-protobufs/athena/athena.proto",
+    "codegen": "npx protoc --plugin=protoc-gen-ts=./node_modules/.bin/protoc-gen-ts --ts_out=import_style=module,client_grpc1:./src/athena --proto_path=./athena-protobufs/athena ./athena-protobufs/athena/athena.proto",
     "lint": "eslint .",
     "test": "vitest run unit --config __tests__/vitest.config.ts",
     "test:coverage": "vitest run unit --config __tests__/vitest.config.ts --coverage.enabled --coverage.all",
@@ -47,7 +59,7 @@
     "test:watch": "vitest unit"
   },
   "author": "James Abbott <abbottdev@users.noreply.github.com>",
-  "license": "Apache-2.0",
+  "license": "MIT",
   "dependencies": {
     "@bufbuild/protobuf": "^2.7.0",
     "@grpc/grpc-js": "^1.13.4",
