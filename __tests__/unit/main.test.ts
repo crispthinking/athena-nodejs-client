@@ -47,12 +47,7 @@ describe('classifyImage function', () => {
     });
 
     // Generate 10 unique correlationIds
-    const correlationIds =
-    [
-      randomUUID().toString(),
-      randomUUID().toString(),
-      randomUUID().toString()
-    ]
+    const correlationIds = Array.from({ length: 10 }, () => randomUUID().toString());
 
     correlationIds.sort((a, b) => a.localeCompare(b));
 
@@ -112,35 +107,20 @@ describe('classifyImage function', () => {
     expect(outputs).toBeDefined();
     // Check that all correlationIds are present in the outputs
     expect(outputs.length).toBe(correlationIds.length);
-    expect(outputs).toMatchObject([
+
+    const expectedOutputs = correlationIds.map(id =>(
       {
-        correlationId: correlationIds[0],
+        correlationId: id,
         classifications: expect.arrayContaining([
           {
             label: expect.any(String),
             weight: expect.any(Number)
           }
         ])
-      } as ClassificationOutput,
-      {
-        correlationId: correlationIds[1],
-        classifications: expect.arrayContaining([
-          {
-            label: expect.any(String),
-            weight: expect.any(Number)
-          }
-        ])
-      } as ClassificationOutput,
-      {
-        correlationId: correlationIds[2],
-        classifications: expect.arrayContaining([
-          {
-            label: expect.any(String),
-            weight: expect.any(Number)
-          }
-        ])
-      } as ClassificationOutput
-    ]);
+      }
+    ));
+
+    expect(outputs).toMatchObject(expectedOutputs);
   }, 120000);
 
   it('should classify Steamboat-willie.jpg and return responses (integration smoke test)', async ({expect, annotate}) => {
