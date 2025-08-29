@@ -47,7 +47,7 @@
     "test:watch": "vitest unit"
   },
   "author": "James Abbott <abbottdev@users.noreply.github.com>",
-  "license": "Apache-2.0",
+  "license": "MIT",
   "dependencies": {
     "@bufbuild/protobuf": "^2.7.0",
     "@grpc/grpc-js": "^1.13.4",

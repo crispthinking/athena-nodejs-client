@@ -1,8 +1,9 @@
 import { Readable } from 'stream';
 import crypto from 'crypto';
 import sharp from 'sharp';
-import { RequestEncoding } from './main';
+import { ImageFormat, RequestEncoding } from '.';
 import brotli from 'brotli';
+import { buffer } from 'stream/consumers';
 
 /**
  * Computes MD5 and SHA1 hashes from a readable stream and resizes any image data.
@@ -13,16 +14,25 @@ import brotli from 'brotli';
 export async function computeHashesFromStream(
   stream: Readable,
   encoding: RequestEncoding = RequestEncoding.UNCOMPRESSED,
-): Promise<{ md5: string; sha1: string; data: Buffer }> {
+  imageFormat: ImageFormat = ImageFormat.UNSPECIFIED,
+  resize: boolean = false,
+): Promise<{ md5: string; sha1: string; data: Buffer; format: ImageFormat }> {
   const md5 = crypto.createHash('md5');
   const sha1 = crypto.createHash('sha1');
-  const resizer = sharp().resize(448, 448).raw({ depth: 'uint' });
+
+  let data: Buffer<ArrayBufferLike>;
 
   stream.pipe(md5);
   stream.pipe(sha1);
-  stream.pipe(resizer);
 
-  let data = await resizer.toBuffer();
+  if (resize) {
+    const resizer = sharp().resize(448, 448).raw({ depth: 'uint' });
+    stream.pipe(resizer);
+    data = await resizer.toBuffer();
+    imageFormat = ImageFormat.RAW_UINT8;
+  } else {
+    data = await buffer(stream);
+  }
 
   if (encoding === RequestEncoding.BROTLI) {
     data = Buffer.from(await brotli.compress(data));
@@ -32,5 +42,6 @@ export async function computeHashesFromStream(
     md5: md5.digest('hex'),
     sha1: sha1.digest('hex'),
     data,
+    format: imageFormat,
   };
 }
