@@ -31,12 +31,15 @@ import { computeHashesFromStream } from './hashing';
  * @property imageStream The image data as a readable stream.
  * @property encoding Optional encoding type for the image data.
  * @property format Optional image format.
+ * @property resize Optional flag to resize the image.
+ * @property hashes Array of hash types to compute.
  */
 export type ClassifyImageInput = {
   affiliate?: string;
   correlationId?: string;
   imageStream: Readable;
   encoding?: ClassifyRequest['inputs'][number]['encoding'];
+  includeHashes?: HashType[];
 } & (ResizeImageInput | RawImageInput);
 
 export type ResizeImageInput = {
@@ -246,6 +249,7 @@ export class ClassifierSdk extends (EventEmitter as new () => TypedEmitter<Class
         affiliate = this.options.affiliate,
         correlationId = randomUUID(),
         imageStream,
+        includeHashes = [HashType.MD5, HashType.SHA1],
         encoding = RequestEncoding.UNCOMPRESSED,
       } = options;
 
@@ -260,11 +264,18 @@ export class ClassifierSdk extends (EventEmitter as new () => TypedEmitter<Class
         encoding,
         inputFormat,
         'resize' in options,
+        includeHashes,
       );
-      const hashes: ImageHash[] = [
-        { value: md5, type: HashType.MD5 },
-        { value: sha1, type: HashType.SHA1 },
-      ];
+
+      const hashes: ImageHash[] = [];
+
+      if (md5 && md5.trim() != '') {
+        hashes.push({ value: md5, type: HashType.MD5 });
+      }
+
+      if (sha1 && sha1.trim() != '') {
+        hashes.push({ value: sha1, type: HashType.SHA1 });
+      }
 
       processedInputs.push({
         affiliate,

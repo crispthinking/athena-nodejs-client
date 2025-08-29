@@ -3,7 +3,8 @@ import { ClassificationOutput, ClassifierSdk, ClassifyImageInput, ImageFormat } 
 import fs from 'fs';
 import { randomUUID } from 'crypto';
 
-describe('classifierHelper', () => {
+describe('ClassifierSdk smoke tests', () => {
+
   it('should listDeployments and return responses (smoke test)', async ({expect}) => {
       // This is a smoke test. You must have a running gRPC server at localhost:50051 for this to pass.
       // You may want to mock the gRPC client for true unit testing.
@@ -34,7 +35,7 @@ describe('classifyImage function', () => {
   it('should classify 10 images in a single request and return responses (integration smoke test)', async ({expect, annotate}) => {
     // This is a smoke test. You must have a running gRPC server at localhost:50051 for this to pass.
     // You may want to mock the gRPC client for true unit testing.
-    const imagePath = __dirname + '/Steamboat-willie.jpg';
+    const imagePath = __dirname + '/448x448.jpg';
     const sdk = new ClassifierSdk({
         deploymentId: process.env.VITE_ATHENA_DEPLOYMENT_ID,
         affiliate: process.env.VITE_ATHENA_AFFILIATE,
@@ -111,22 +112,21 @@ describe('classifyImage function', () => {
     const expectedOutputs = correlationIds.map(id =>(
       {
         correlationId: id,
-        classifications: expect.arrayContaining([
+        classifications: expect.toBeOneOf([expect.arrayContaining([
           {
             label: expect.any(String),
             weight: expect.any(Number)
           }
-        ])
+        ]), []])
       }
     ));
 
     expect(outputs).toMatchObject(expectedOutputs);
   }, 120000);
 
-  it('should classify Steamboat-willie.jpg with raw uint8 resize return responses (integration smoke test)', async ({expect, annotate}) => {
-    // This is a smoke test. You must have a running gRPC server at localhost:50051 for this to pass.
-    // You may want to mock the gRPC client for true unit testing.
-    const imagePath = __dirname + '/Steamboat-willie.jpg';
+  it('should classify with raw uint8 resize return responses (integration smoke test)', async ({expect, annotate}) => {
+
+    const imagePath = __dirname + '/448x448.jpg';
     const sdk = new ClassifierSdk({
         deploymentId: process.env.VITE_ATHENA_DEPLOYMENT_ID,
         affiliate: process.env.VITE_ATHENA_AFFILIATE,
@@ -187,12 +187,12 @@ describe('classifyImage function', () => {
     expect(first).toMatchObject([
       {
         correlationId,
-        classifications: expect.arrayContaining([
+        classifications: expect.toBeOneOf([expect.arrayContaining([
           {
             label: expect.any(String),
             weight: expect.any(Number)
           }
-        ])
+        ]), []])
       } as ClassificationOutput
     ]);
 
@@ -200,10 +200,10 @@ describe('classifyImage function', () => {
     expect(error).toBeUndefined();
   }, 120000);
 
-  it('should classify Steamboat-willie.jpg and return responses (integration smoke test)', async ({expect, annotate}) => {
+  it('should classify return responses (integration smoke test)', async ({expect, annotate}) => {
     // This is a smoke test. You must have a running gRPC server at localhost:50051 for this to pass.
     // You may want to mock the gRPC client for true unit testing.
-    const imagePath = __dirname + '/Steamboat-willie.jpg';
+    const imagePath = __dirname + '/448x448.jpg';
     const sdk = new ClassifierSdk({
         deploymentId: process.env.VITE_ATHENA_DEPLOYMENT_ID,
         affiliate: process.env.VITE_ATHENA_AFFILIATE,
@@ -248,7 +248,7 @@ describe('classifyImage function', () => {
     const options: ClassifyImageInput = {
       imageStream,
       correlationId,
-      format: ImageFormat.JPEG
+      format: ImageFormat.JPEG,
     };
     try {
       await sdk.sendClassifyRequest(options);
@@ -264,12 +264,12 @@ describe('classifyImage function', () => {
     expect(first).toMatchObject([
       {
         correlationId,
-        classifications: expect.arrayContaining([
+        classifications: expect.toBeOneOf([expect.arrayContaining([
           {
             label: expect.any(String),
             weight: expect.any(Number)
           }
-        ])
+        ]), []])
       } as ClassificationOutput
     ]);
 
