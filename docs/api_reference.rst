@@ -12,9 +12,6 @@ Main Classes
 - **ClassifierSdk**: Main entry point for interacting with the Athena service. Handles authentication, deployment management, and image classification.
 - **ClassifierServiceClient**: Low-level gRPC client for direct service calls.
 - **ClassifyImageOptions**: Options for sending image classification requests.
-- **Deployment**: Represents a deployment session.
-- **ClassifyRequest** / **ClassifyResponse**: Request and response types for image classification.
-- **ClassificationInput** / **ClassificationOutput** / **ClassificationError** / **Classification**: Types for input, output, and error handling.
 
 Usage Example
 -------------
@@ -63,29 +60,5 @@ API Classes
 .. js:autoclass:: ClassifierServiceClient
    :members:
 
-.. js:autointerface:: ClassifyImageOptions
-   :members:
-
-.. js:autointerface:: ListDeploymentsResponse
-   :members:
-
-.. js:autointerface:: Deployment
-   :members:
-
-.. js:autointerface:: ClassifyResponse
-   :members:
-
-.. js:autointerface:: ClassifyRequest
-   :members:
-
-.. js:autointerface:: ClassificationOutput
-   :members:
-
-.. js:autointerface:: ClassificationInput
-   :members:
-
-.. js:autointerface:: ClassificationError
-   :members:
-
-.. js:autointerface:: Classification
-   :members:
+.. js:autoclass:: ClassifyImageOptions
+    :members:

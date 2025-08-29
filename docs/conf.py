@@ -17,18 +17,18 @@ from pathlib import Path
 sys.path.insert(0, str(Path("../athena").resolve()))
 
 # Project information
-project = 'Athena Classifier NodeJS SDK'
+project = "Athena Classifier NodeJS SDK"
 copyright = f"{datetime.now(timezone.utc).year}, Crisp"
 author = "Crisp"
 release = "1.0.0"
 
-js_language = 'typescript'
-js_source_path = '../src/'
-jsdoc_config_path = '../typedoc.json'
+js_language = "typescript"
+js_source_path = "../src/"
+jsdoc_config_path = "../typedoc.json"
 
 # Extensions
 extensions = [
-    'sphinx_js',
+    "sphinx_js",
     "sphinx.ext.autodoc",
     "sphinx.ext.napoleon",
     "sphinx.ext.viewcode",
@@ -63,7 +63,6 @@ exclude_patterns = [
     # Exclude files with duplicate documented objects
     "../src/athena/google/protobuf/empty.ts",
     "../src/athena/athena.ts",
-
 ]
 
 # The theme to use for HTML and HTML Help pages
@@ -122,6 +121,10 @@ html_context = {
 intersphinx_mapping = {
     "python": ("https://docs.python.org/3", None),
     "grpc": ("https://grpc.github.io/grpc/python/", None),
+    "athena_protobufs": (
+        "https://crispthinking.github.io/athena-protobufs/",
+        None,
+    ),
 }
 
 # Create required directories if they don't exist
