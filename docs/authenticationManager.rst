@@ -1,7 +1,7 @@
 Authentication Manager
 =====================
 
-Manages OAuth authentication and token refresh for the Athena gRPC client. Handles acquiring and refreshing access tokens using the OAuth client credentials flow.
+Manages OAuth authentication and token refresh for the Athena gRPC client.  Handles acquiring and refreshing access tokens using the OAuth client credentials flow.
 
 **Main features:**
 - Supports OAuth client credentials grant
