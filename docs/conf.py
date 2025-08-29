@@ -60,6 +60,10 @@ exclude_patterns = [
     "**/.pytest_cache/**",
     "**/.mypy_cache/**",
     "**/.ruff_cache/**",
+    # Exclude files with duplicate documented objects
+    "../src/athena/google/protobuf/empty.ts",
+    "../src/athena/athena.ts",
+
 ]
 
 # The theme to use for HTML and HTML Help pages
