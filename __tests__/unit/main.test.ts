@@ -4,7 +4,7 @@ import fs from 'fs';
 import { randomUUID } from 'crypto';
 
 describe('classifierHelper', () => {
-  it('should listDeployments and return responses using stubbed api)', async ({expect}) => {
+  it('should listDeployments and return responses (smoke test)', async ({expect}) => {
       // This is a smoke test. You must have a running gRPC server at localhost:50051 for this to pass.
       // You may want to mock the gRPC client for true unit testing.
       const sdk = new ClassifierSdk({

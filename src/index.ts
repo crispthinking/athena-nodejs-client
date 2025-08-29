@@ -82,7 +82,11 @@ export const defaultGrpcAddress =
 
 /**
  * SDK for interacting with the Athena classification service via gRPC.
- * Emits events for data, errors, open, and close.
+ * Emits events for data, error, open, and close.
+ * @fires ClassifierSdk#open
+ * @fires ClassifierSdk#error
+ * @fires ClassifierSdk#close
+ * @fires ClassifierSdk#data
  */
 export class ClassifierSdk extends (EventEmitter as new () => TypedEmitter<ClassifierEvents>) {
   private grpcAddress: string;
@@ -177,6 +181,16 @@ export class ClassifierSdk extends (EventEmitter as new () => TypedEmitter<Class
     }, this.options.keepAliveInterval ?? 10000);
 
     this.classifierGrpcCall.on('data', (data: ClassifyResponse) =>
+      /**
+       * Data event
+       *
+       * @event ClassifierEvents#data
+       * @type {ClassifyResponse}
+       * @description Emitted when a classification response is received.
+       * @param {ClassifyResponse} data The classification response data.
+       * @property {string} data.deploymentId The ID of the deployment.
+       * @property {ClassificationResult[]} data.results The classification results.
+       */
       this.emit('data', data),
     );
     this.classifierGrpcCall.on('error', (err: Error) =>
