@@ -29,10 +29,9 @@ jobs:
         uses: volta-cli/action@v4
       - name: Install NPM
         run: npm ci --no-audit
-      - name: Install typedoc
-        run: npm install typedoc
       - name: Build documentation
         run: |
+          npm install typedoc
           cd docs
           uv run make clean
           uv run make html
