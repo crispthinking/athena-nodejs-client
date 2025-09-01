@@ -1,5 +1,5 @@
 {
-  "name": "athena-classifier-sdk",
+  "name": "@crispthinking/athena-classifier-sdk",
   "version": "0.1.0",
   "description": "A Node.js SDK for the Athena classifier that uses gRPC transport.",
   "type": "module",
