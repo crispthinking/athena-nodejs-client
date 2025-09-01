@@ -94,7 +94,6 @@ export class AuthenticationManager {
         this.token = undefined;
       } else {
         // Attempt to refresh token.
-        console.trace('Refreshing access token');
         try {
           this.token = await refreshTokenGrant(
             this.discovery,
