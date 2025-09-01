@@ -3,10 +3,10 @@ import {
   Configuration,
   discovery,
   refreshTokenGrant,
-  TokenEndpointResponse,
+  type TokenEndpointResponse,
 } from 'openid-client';
 import * as grpc from '@grpc/grpc-js';
-import { jwtDecode, JwtPayload } from 'jwt-decode';
+import { jwtDecode, type JwtPayload } from 'jwt-decode';
 
 /**
  * Options for configuring the AuthenticationManager.
@@ -29,7 +29,7 @@ export type AuthenticationOptions = {
  * Handles acquiring and refreshing access tokens using the OAuth client credentials flow.
  */
 export class AuthenticationManager {
-  private token?: TokenEndpointResponse;
+  private token?: TokenEndpointResponse | undefined;
   private decoded?: JwtPayload;
   private options: AuthenticationOptions;
   private discovery?: Configuration;
@@ -59,6 +59,10 @@ export class AuthenticationManager {
    */
   public async getAuthenticationHeader(): Promise<string> {
     await this.maybeRefreshAccessToken();
+    if (this.token === undefined) {
+      throw new Error('No access token available');
+    }
+
     return `${this.token.token_type} ${this.token.access_token}`;
   }
 
@@ -70,6 +74,10 @@ export class AuthenticationManager {
   private async maybeRefreshAccessToken(): Promise<void> {
     if (this.discovery === undefined) {
       // Discover the OIDC server metadata
+      console.info('Discovering OIDC server metadata from for: ', {
+        clientId: this.options.clientId,
+        issuerUrl: this.options.issuerUrl,
+      });
       this.discovery = await discovery(
         new URL(this.options.issuerUrl),
         this.options.clientId,
@@ -86,6 +94,7 @@ export class AuthenticationManager {
         this.token = undefined;
       } else {
         // Attempt to refresh token.
+        console.trace('Refreshing access token');
         try {
           this.token = await refreshTokenGrant(
             this.discovery,

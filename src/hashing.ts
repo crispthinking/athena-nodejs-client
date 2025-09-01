@@ -15,16 +15,27 @@ import { buffer } from 'stream/consumers';
  * @returns {Promise<{md5?: string, sha1?: string, data: Buffer}>} Object containing MD5 hash, SHA1 hash, and resized image buffer
  */
 export async function computeHashesFromStream(
-  stream: Readable,
+  data: Readable | Buffer<ArrayBufferLike>,
   encoding: RequestEncoding = RequestEncoding.UNCOMPRESSED,
   imageFormat: ImageFormat = ImageFormat.UNSPECIFIED,
   resize: boolean = false,
   hashes: HashType[] = [HashType.MD5, HashType.SHA1],
-): Promise<{ md5?: string; sha1?: string; data: Buffer; format: ImageFormat }> {
+): Promise<{
+  md5?: string | undefined;
+  sha1?: string | undefined;
+  data: Buffer;
+  format: ImageFormat;
+}> {
   const md5 = crypto.createHash('md5');
   const sha1 = crypto.createHash('sha1');
 
-  let data: Buffer<ArrayBufferLike>;
+  let stream: Readable;
+
+  if (data instanceof Readable) {
+    stream = data;
+  } else {
+    stream = Readable.from(data);
+  }
 
   if (hashes.includes(HashType.MD5)) {
     {
