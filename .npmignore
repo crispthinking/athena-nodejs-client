@@ -1,0 +1,42 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+
+# Dependencies
+node_modules/
+
+# Coverage
+coverage
+
+__tests__/**/*
+
+.github/**/*
+athena-protobufs/**/*
+samples/**/*
+
+# VS Code
+.vscode
+!.vscode/tasks.js
+
+# JetBrains IDEs
+.idea/
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Misc
+.DS_Store
+.env
+.venv
+.editorconfig
+.env
+.gitignore
+.prettierrc
+.eslint.config.mjs
+tsconfig.json
+tsconfig.release.json
+typedoc.json

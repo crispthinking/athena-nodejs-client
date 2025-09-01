@@ -1,6 +1,7 @@
 {
   "name": "@crispthinking/athena-classifier-sdk",
   "version": "0.1.0",
+  "main": "./dist/index.js",
   "description": "A Node.js SDK for the Athena classifier that uses gRPC transport.",
   "type": "module",
   "engines": {
