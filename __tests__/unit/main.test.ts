@@ -1,5 +1,5 @@
 import { describe, it, } from 'vitest';
-import { ClassificationOutput, ClassifierSdk, ClassifyImageInput, ImageFormat } from '../../src';
+import { ClassificationOutput, ClassifierSdk, type ClassifyImageInput, ImageFormat } from '../../src';
 import fs from 'fs';
 import { randomUUID } from 'crypto';
 
@@ -56,7 +56,7 @@ describe('ClassifierSdk', () => {
 
       // Create 10 input objects, each with a new stream and unique correlationId
       const inputs: ClassifyImageInput[] = correlationIds.map((correlationId) => ({
-        imageStream: fs.createReadStream(imagePath),
+        data: fs.createReadStream(imagePath),
         format: ImageFormat.PNG,
         correlationId
       }));
@@ -165,9 +165,9 @@ describe('ClassifierSdk', () => {
 
       await sdk.open();
 
-      const imageStream = fs.createReadStream(imagePath);
+      const data = fs.createReadStream(imagePath);
       const options: ClassifyImageInput = {
-        imageStream,
+        data,
         correlationId,
         resize: true,
       };
@@ -242,9 +242,9 @@ describe('ClassifierSdk', () => {
 
       await sdk.open();
 
-      const imageStream = fs.createReadStream(imagePath);
+      const data = fs.createReadStream(imagePath);
       const options: ClassifyImageInput = {
-        imageStream,
+        data,
         correlationId,
         format: ImageFormat.JPEG,
       };

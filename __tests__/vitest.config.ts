@@ -10,7 +10,7 @@ export default defineConfig({
     coverage: {
       enabled: true,
       provider: 'v8',
-      exclude: [...coverageConfigDefaults.exclude, 'build/**/*', 'src/athena/**/*']
+      exclude: [...coverageConfigDefaults.exclude, 'build/**/*','samples/**/*', 'src/athena/**/*']
     },
   },
 })

@@ -12,17 +12,17 @@ import {
 } from './athena/athena';
 import * as grpc from '@grpc/grpc-js';
 import {
-  IClassifierServiceClient,
+  type IClassifierServiceClient,
   ClassifierServiceClient,
 } from './athena/athena.grpc-client';
 import { EventEmitter } from 'events';
 import { Empty } from './athena/google/protobuf/empty';
-import TypedEmitter from 'typed-emitter';
 import {
-  AuthenticationOptions,
+  type AuthenticationOptions,
   AuthenticationManager,
 } from './authenticationManager';
 import { computeHashesFromStream } from './hashing';
+import type TypedEventEmitter from 'typed-emitter';
 
 /**
  * Options for the classifyImage method.
@@ -37,7 +37,7 @@ import { computeHashesFromStream } from './hashing';
 export type ClassifyImageInput = {
   affiliate?: string;
   correlationId?: string;
-  imageStream: Readable;
+  data: Readable | Buffer<ArrayBufferLike>;
   encoding?: ClassifyRequest['inputs'][number]['encoding'];
   includeHashes?: HashType[];
 } & (ResizeImageInput | RawImageInput);
@@ -59,7 +59,7 @@ export type RawImageInput = {
  * @property authentication Authentication options for the SDK.
  */
 export interface ClassifierSdkOptions {
-  keepAliveInterval?: number;
+  keepAliveInterval?: number | undefined;
   grpcAddress?: string;
   deploymentId: string;
   affiliate: string;
@@ -91,7 +91,7 @@ export const defaultGrpcAddress =
  * @fires ClassifierSdk#close
  * @fires ClassifierSdk#data
  */
-export class ClassifierSdk extends (EventEmitter as new () => TypedEmitter<ClassifierEvents>) {
+export class ClassifierSdk extends (EventEmitter as new () => TypedEventEmitter<ClassifierEvents>) {
   private grpcAddress: string;
   private client: IClassifierServiceClient;
   private classifierGrpcCall: grpc.ClientDuplexStream<
@@ -100,7 +100,7 @@ export class ClassifierSdk extends (EventEmitter as new () => TypedEmitter<Class
   > | null = null;
   private options: ClassifierSdkOptions;
   private auth: AuthenticationManager;
-  private keepAlive: NodeJS.Timeout;
+  private keepAlive?: NodeJS.Timeout;
   private metadata?: grpc.Metadata;
 
   /**
@@ -170,15 +170,19 @@ export class ClassifierSdk extends (EventEmitter as new () => TypedEmitter<Class
 
     // Setup interval to keep the grpc client alive.
     this.keepAlive = setInterval(async () => {
-      if (this.classifierGrpcCall) {
+      if (this.classifierGrpcCall && this.metadata) {
         try {
           await this.auth.appendAuthorizationToMetadata(this.metadata);
           this.classifierGrpcCall.write({
             deploymentId: this.options.deploymentId,
             inputs: [],
           });
-        } catch (error) {
-          this.emit('error', error);
+        } catch (err) {
+          if (err && err instanceof Error) {
+            this.emit('error', err);
+          } else {
+            console.log(err);
+          }
         }
       }
     }, this.options.keepAliveInterval ?? 10000);
@@ -247,8 +251,8 @@ export class ClassifierSdk extends (EventEmitter as new () => TypedEmitter<Class
     for (const options of requests) {
       const {
         affiliate = this.options.affiliate,
-        correlationId = randomUUID(),
-        imageStream,
+        correlationId = randomUUID().toString(),
+        data: inputData,
         includeHashes = [HashType.MD5, HashType.SHA1],
         encoding = RequestEncoding.UNCOMPRESSED,
       } = options;
@@ -260,7 +264,7 @@ export class ClassifierSdk extends (EventEmitter as new () => TypedEmitter<Class
       }
 
       const { md5, sha1, data, format } = await computeHashesFromStream(
-        imageStream,
+        inputData,
         encoding,
         inputFormat,
         'resize' in options,
@@ -293,7 +297,10 @@ export class ClassifierSdk extends (EventEmitter as new () => TypedEmitter<Class
     };
 
     await new Promise<void>((resolve) => {
-      if (this.classifierGrpcCall.write(classifyRequest) == false) {
+      if (
+        this.classifierGrpcCall &&
+        this.classifierGrpcCall.write(classifyRequest) == false
+      ) {
         this.classifierGrpcCall.once('drain', resolve);
       } else {
         resolve();
@@ -314,6 +321,27 @@ export class ClassifierSdk extends (EventEmitter as new () => TypedEmitter<Class
       this.classifierGrpcCall = null;
       this.emit('close');
     }
+  }
+
+  public override on<U extends keyof ClassifierEvents>(
+    event: U,
+    listener: ClassifierEvents[U],
+  ): this {
+    return super.on(event, listener);
+  }
+
+  public override once<U extends keyof ClassifierEvents>(
+    event: U,
+    listener: ClassifierEvents[U],
+  ): this {
+    return super.once(event, listener);
+  }
+
+  public override off<U extends keyof ClassifierEvents>(
+    event: U,
+    listener: ClassifierEvents[U],
+  ): this {
+    return super.off(event, listener);
   }
 }
 
