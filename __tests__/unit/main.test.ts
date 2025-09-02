@@ -110,7 +110,6 @@ describe('ClassifierSdk', () => {
       const expectedOutputs = correlationIds.map(id => (
         {
           correlationId: id,
-          error: undefined,
           classifications: expect.toBeOneOf([expect.arrayContaining([
             {
               label: expect.any(String),
@@ -186,7 +185,6 @@ describe('ClassifierSdk', () => {
       expect(first).toMatchObject([
         {
           correlationId,
-          error: undefined,
           classifications: expect.toBeOneOf([expect.arrayContaining([
             {
               label: expect.any(String),
@@ -264,7 +262,6 @@ describe('ClassifierSdk', () => {
       expect(first).toMatchObject([
         {
           correlationId,
-          error: undefined,
           classifications: expect.toBeOneOf([expect.arrayContaining([
             {
               label: expect.any(String),
