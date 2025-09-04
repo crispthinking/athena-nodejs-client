@@ -345,6 +345,6 @@ export class ClassifierSdk extends (EventEmitter as new () => TypedEventEmitter<
   }
 }
 
-export * from './athena/athena.js';
-export * from './athena/athena.grpc-client.js';
-export * from './hashing.js';
+export * from './athena/athena';
+export * from './athena/athena.grpc-client';
+export * from './hashing';

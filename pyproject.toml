@@ -1,0 +1,37 @@
+[project]
+name = "athena-nodejs-sdk"
+version = "0.0.0"
+description = "NodeJS SDK documentation for Athena CSAM Detection API"
+authors = [
+    { name = "Crisp Thinking Group Ltd.", email = "opensource@kroll.com" },
+]
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.12"
+classifiers = []
+
+dependencies = [
+    # Sphinx documentation dependencies
+    "sphinx>=7.0.0",
+    "sphinx-rtd-theme>=1.3.0",
+    "myst-parser>=2.0.0",
+    # Extensions for enhanced documentation
+    "sphinx-autobuild>=2021.3.14",
+    "sphinxcontrib-spelling>=8.0.0",
+    # Sphinx JS extension
+    "sphinx-js>=4.1.0",
+    # Protocol buffer support
+    "protobuf>=4.0.0",
+    "grpcio>=1.50.0",
+    "grpcio-tools>=1.50.0",
+    "furo>=2025.7.19",
+    "sphinx-design>=0.5.0",
+    "sphinx-copybutton>=0.5.0",
+    "sphinx-ts>=0.1.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/crispthinking/athena-nodejs-client"
+Documentation = "https://crispthinking.github.io/athena-nodejs-client"
+Repository = "https://github.com/crispthinking/athena-nodejs-client"
+Issues = "https://github.com/crispthinking/athena-nodejs-client/issues"

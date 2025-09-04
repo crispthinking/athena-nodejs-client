@@ -54,3 +54,15 @@ This project uses [`@protobuf-ts/plugin`](https://github.com/timostamm/protobuf-
 - If you see TypeScript errors about missing modules, ensure your `tsconfig.json` includes the `src/athena` directory and restart your IDE/tsserver.
 
 ---
+
+Building Documentation
+To build the documentation:
+
+# Install uv if not already installed
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Sync dependencies and build
+uv sync
+cd docs
+make html
+The built documentation will be available in docs/_build/html/index.html.

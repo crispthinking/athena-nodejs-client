@@ -1,6 +1,8 @@
 {
   "excludeExternals": true,
   "exclude": [
-    "src/athena/google/*"
+    "src/athena/google/*",
+    "src/athena/athena.ts",
+    "src/athena/google/protobuf/empty.ts"
   ]
 }
