@@ -65,4 +65,4 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 uv sync
 cd docs
 make html
-The built documentation will be available in docs/_build/html/index.html.
+The built documentation will be available in docs/build/html/index.html.

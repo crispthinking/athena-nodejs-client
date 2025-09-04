@@ -50,7 +50,7 @@ autodoc_preserve_defaults = True
 
 # List of patterns to ignore when looking for source files
 exclude_patterns = [
-    "_build",
+    "build",
     "Thumbs.db",
     ".DS_Store",
     "**/generated/**",
