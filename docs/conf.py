@@ -28,7 +28,6 @@ jsdoc_config_path = "../typedoc.json"
 
 # Extensions
 extensions = [
-    "sphinx_js",
     "sphinx.ext.autodoc",
     "sphinx.ext.napoleon",
     "sphinx.ext.viewcode",
@@ -36,7 +35,7 @@ extensions = [
     "sphinx.ext.inheritance_diagram",
     "sphinx.ext.intersphinx",
     "sphinx.ext.todo",
-    "myst_parser",
+    "sphinx_ts",
 ]
 
 # Add any paths that contain templates here, relative to this directory
@@ -168,3 +167,22 @@ todo_include_todos = True
 
 # Output file name
 htmlhelp_basename = "AthenaProtobufsdoc"
+
+# -- TypeScript Sphinx Configuration ----------------------------------------
+
+# Directories to scan for TypeScript files (relative to conf.py)
+sphinx_ts_src_dirs = ["../src"]
+
+# Patterns for files to exclude from parsing
+sphinx_ts_exclude_patterns = [
+    "**/*.test.ts",
+    "**/*.spec.ts",
+    "**/node_modules/**",
+    "**/*.d.ts",
+]
+
+# Whether to include private members in documentation
+sphinx_ts_include_private = True
+
+# Whether to include inherited members in class documentation
+sphinx_ts_include_inherited = True

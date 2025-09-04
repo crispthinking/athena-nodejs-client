@@ -28,5 +28,5 @@ Manages OAuth authentication and token refresh for the Athena gRPC client.  Hand
 * `autoRefresh`: Whether to automatically refresh the access token
 * `scope`: OAuth scope to request
 
-.. js:autoclass:: AuthenticationManager
+.. ts:autoclass:: AuthenticationManager
    :members:
