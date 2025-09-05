@@ -52,6 +52,8 @@
     "build:release": "npm run clean && tsc -p tsconfig.release.json",
     "codegen": "npx protoc --plugin=protoc-gen-ts=./node_modules/.bin/protoc-gen-ts --ts_out=client_grpc1:./src/athena --proto_path=./athena-protobufs/athena-protobufs/athena ./athena-protobufs/athena-protobufs/athena/athena.proto",
     "lint": "eslint .",
+    "lint:all": "npm run lint && npm run prettier:check && npx tsc --noEmit",
+    "precommit:setup": "echo 'To install pre-commit hooks, run: uv tool install pre-commit && uvx pre-commit install'",
     "test": "vitest run unit --config __tests__/vitest.config.ts",
     "test:coverage": "vitest run unit --config __tests__/vitest.config.ts --coverage.enabled --coverage.all",
     "prettier": "prettier \"{src,__{tests}__}/**/*.{ts,mts}\" --config .prettierrc --write",

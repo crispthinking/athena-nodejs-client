@@ -16,12 +16,79 @@ Athena is a gRPC-based image classification service designed for CSAM (Child Sex
 
 # Contributing
 
+## Code Quality and Pre-commit Hooks
+
+This project uses pre-commit hooks to ensure code quality and consistency. The hooks run linting, formatting, and type checking before each commit.
+
+### Setting up Pre-commit Hooks
+
+1. **Install pre-commit** (if not already installed):
+   ```sh
+   uvx pre-commit --help
+   ```
+   Or install globally:
+   ```sh
+   uv tool install pre-commit
+   ```
+
+2. **Install the hooks**:
+   ```sh
+   uvx pre-commit install
+   ```
+
+3. **Run all quality checks manually**:
+   ```sh
+   npm run lint:all
+   ```
+
+### What the Pre-commit Hooks Check
+
+- **ESLint**: Code quality and style issues
+- **Prettier**: Code formatting consistency
+- **TypeScript**: Type checking and compilation
+- **File checks**: Trailing whitespace, file endings, large files, etc.
+- **Submodule status**: Ensures submodules are properly tracked
+
+### Manual Quality Checks
+
+You can run individual checks manually:
+
+```sh
+# Run ESLint
+npm run lint
+
+# Check Prettier formatting
+npm run prettier:check
+
+# Fix Prettier formatting
+npm run prettier
+
+# TypeScript type checking
+npx tsc --noEmit
+
+# Run all checks at once
+npm run lint:all
+```
+
 ## Updating the Protobuf definitions
 
-Protobufs are stored in the [@crispthinking/athena-protobuffs](https://github.com/crispthinking/athena-protobufs) repository.
+Protobufs are stored as a git submodule from the [@crispthinking/athena-nodejs-client](https://github.com/crispthinking/athena-nodejs-client.git) repository.
 
-To update the protobuf definitions for client generation, run:
-`git subtree pull --prefix=athena-protobufs https://github.com/crispthinking/athena-protobufs.git <sha> --squash`
+To update the protobuf definitions for client generation:
+
+1. **Update the submodule to the latest version:**
+   ```sh
+   git submodule update --remote athena-protobufs
+   ```
+
+2. **Or update to a specific commit:**
+   ```sh
+   cd athena-protobufs
+   git checkout <commit-sha>
+   cd ..
+   git add athena-protobufs
+   git commit -m "Update protobuf definitions to <commit-sha>"
+   ```
 
 ## Regenerating the TypeScript gRPC Client
 
@@ -37,11 +104,16 @@ This project uses [`@protobuf-ts/plugin`](https://github.com/timostamm/protobuf-
 
 2. **Run the following command to regenerate the client and types:**
 	```sh
+	npm run codegen
+	```
+
+	Or manually with:
+	```sh
 	npx protoc \
 	  --plugin=protoc-gen-ts=./node_modules/.bin/protoc-gen-ts \
 	  --ts_out=client_grpc1:./src/athena \
-	  --proto_path=./athena-protobufs/athena \
-	  ./athena-protobufs/athena/athena.proto
+	  --proto_path=./athena-protobufs/athena-protobufs/athena \
+	  ./athena-protobufs/athena-protobufs/athena/athena.proto
 	```
 	- This will generate `.ts` files in `src/athena/` including a gRPC client compatible with `@grpc/grpc-js`.
 
@@ -49,9 +121,15 @@ This project uses [`@protobuf-ts/plugin`](https://github.com/timostamm/protobuf-
 	- The main client will be in `src/athena/athena.grpc-client.ts`.
 	- Message types and enums are in `src/athena/athena.ts`.
 
+3. **Format the generated code:**
+	```sh
+	npm run prettier
+	```
+
 ### Notes
-- If you add or change proto files, rerun the above command to keep the TypeScript client in sync.
+- If you update proto files in the submodule, rerun `npm run codegen` to keep the TypeScript client in sync.
 - If you see TypeScript errors about missing modules, ensure your `tsconfig.json` includes the `src/athena` directory and restart your IDE/tsserver.
+- The generated files are automatically formatted by the pre-commit hooks, but you can run `npm run prettier` manually if needed.
 
 ---
 
