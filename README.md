@@ -72,7 +72,7 @@ npm run lint:all
 
 ## Updating the Protobuf definitions
 
-Protobufs are stored as a git submodule from the [crispthinking/athena-protobufs](https://github.com/crispthinking/athena-protobufs.git) repository.
+Protobufs are stored as a git submodule from the [@crispthinking/athena-protobufs](https://github.com/crispthinking/athena-protobufs.git) repository.
 
 To update the protobuf definitions for client generation:
 
@@ -112,8 +112,8 @@ This project uses [`@protobuf-ts/plugin`](https://github.com/timostamm/protobuf-
 	npx protoc \
 	  --plugin=protoc-gen-ts=./node_modules/.bin/protoc-gen-ts \
 	  --ts_out=client_grpc1:./src/athena \
-	  --proto_path=./athena-protobufs/athena-protobufs/athena \
-	  ./athena-protobufs/athena-protobufs/athena/athena.proto
+	  --proto_path=./athena-protobufs/athena \
+	  ./athena-protobufs/athena/athena.proto
 	```
 	- This will generate `.ts` files in `src/athena/` including a gRPC client compatible with `@grpc/grpc-js`.
 
