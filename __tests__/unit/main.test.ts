@@ -1,280 +1,162 @@
-import { describe, it, } from 'vitest';
-import { ClassificationOutput, ClassifierSdk, type ClassifyImageInput, ImageFormat } from '../../src';
-import fs from 'fs';
-import { randomUUID } from 'crypto';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { ClassifierSdk, ImageFormat } from '../../src';
+
+// Mock the dependencies
+vi.mock('@grpc/grpc-js');
+vi.mock('../../src/authenticationManager');
 
 describe('ClassifierSdk', () => {
-  describe('listDeployments', () => {
-    it('should listDeployments and return responses (smoke test)', async ({ expect }) => {
-      // This is a smoke test. You must have a running gRPC server at localhost:50051 for this to pass.
-      // You may want to mock the gRPC client for true unit testing.
-      const sdk = new ClassifierSdk({
-        deploymentId: process.env.VITE_ATHENA_DEPLOYMENT_ID,
-        affiliate: process.env.VITE_ATHENA_AFFILIATE,
-        authentication: {
-          issuerUrl: process.env.VITE_OAUTH_ISSUER,
-          clientId: process.env.VITE_ATHENA_CLIENT_ID,
-          clientSecret: process.env.VITE_ATHENA_CLIENT_SECRET,
-          scope: 'manage:classify'
-        }
-      });
+  let sdk: ClassifierSdk;
 
-      let error: any = null;
-      try {
-        const responses = await sdk.listDeployments();
-        expect(Array.isArray(responses)).toBe(true);
-      } catch (err) {
-        error = err;
-      }
-      // Assert error is unset
-      expect(error).toBeNull();
-    }, 10000)
+  beforeEach(() => {
+    sdk = new ClassifierSdk({
+      deploymentId: 'test-deployment',
+      affiliate: 'test-affiliate',
+      authentication: {
+        issuerUrl: 'https://test-issuer.com',
+        clientId: 'test-client-id',
+        clientSecret: 'test-client-secret',
+        scope: 'manage:classify',
+      },
+    });
   });
 
-  describe('classifyImage', () => {
-    it('should classify 10 images in a single request and return responses (integration smoke test)', async ({ expect, annotate }) => {
-      // This is a smoke test. You must have a running gRPC server at localhost:50051 for this to pass.
-      // You may want to mock the gRPC client for true unit testing.
-      const imagePath = __dirname + '/448x448.jpg';
-      const sdk = new ClassifierSdk({
-        deploymentId: process.env.VITE_ATHENA_DEPLOYMENT_ID,
-        affiliate: process.env.VITE_ATHENA_AFFILIATE,
+  describe('constructor', () => {
+    it('should create a ClassifierSdk instance with valid configuration', () => {
+      expect(sdk).toBeDefined();
+      expect(sdk).toBeInstanceOf(ClassifierSdk);
+    });
+
+    it('should accept optional grpcAddress configuration', () => {
+      const customSdk = new ClassifierSdk({
+        deploymentId: 'test-deployment',
+        affiliate: 'test-affiliate',
+        grpcAddress: 'custom-host:9000',
         authentication: {
-          issuerUrl: process.env.VITE_OAUTH_ISSUER,
-          clientId: process.env.VITE_ATHENA_CLIENT_ID,
-          clientSecret: process.env.VITE_ATHENA_CLIENT_SECRET,
-          scope: 'manage:classify'
-        }
+          issuerUrl: 'https://test-issuer.com',
+          clientId: 'test-client-id',
+          clientSecret: 'test-client-secret',
+          scope: 'manage:classify',
+        },
       });
 
-      // Generate 10 unique correlationIds
-      const correlationIds = Array.from({ length: 10 }, () => randomUUID().toString());
+      expect(customSdk).toBeDefined();
+      expect(customSdk).toBeInstanceOf(ClassifierSdk);
+    });
 
-      correlationIds.sort((a, b) => a.localeCompare(b));
+    it('should accept optional keepAliveInterval configuration', () => {
+      const customSdk = new ClassifierSdk({
+        deploymentId: 'test-deployment',
+        affiliate: 'test-affiliate',
+        keepAliveInterval: 5000,
+        authentication: {
+          issuerUrl: 'https://test-issuer.com',
+          clientId: 'test-client-id',
+          clientSecret: 'test-client-secret',
+          scope: 'manage:classify',
+        },
+      });
 
-      annotate(`Correlation IDs: ${correlationIds.join(', ')}`);
+      expect(customSdk).toBeDefined();
+      expect(customSdk).toBeInstanceOf(ClassifierSdk);
+    });
+  });
 
-      // Create 10 input objects, each with a new stream and unique correlationId
-      const inputs: ClassifyImageInput[] = correlationIds.map((correlationId) => ({
-        data: fs.createReadStream(imagePath),
+  describe('ImageFormat enum', () => {
+    it('should have all expected image formats', () => {
+      expect(ImageFormat.PNG).toBeDefined();
+      expect(ImageFormat.JPEG).toBeDefined();
+      expect(ImageFormat.RAW_UINT8).toBeDefined();
+    });
+
+    it('should have correct values for image formats', () => {
+      expect(typeof ImageFormat.PNG).toBe('number');
+      expect(typeof ImageFormat.JPEG).toBe('number');
+      expect(typeof ImageFormat.RAW_UINT8).toBe('number');
+    });
+  });
+
+  describe('event handling', () => {
+    it('should be an event emitter', () => {
+      expect(typeof sdk.on).toBe('function');
+      expect(typeof sdk.emit).toBe('function');
+      expect(typeof sdk.once).toBe('function');
+      expect(typeof sdk.off).toBe('function');
+    });
+
+    it('should handle event listener registration', () => {
+      const mockHandler = vi.fn();
+
+      sdk.on('data', mockHandler);
+      sdk.on('error', mockHandler);
+
+      expect(sdk.listenerCount('data')).toBe(1);
+      expect(sdk.listenerCount('error')).toBe(1);
+    });
+
+    it('should handle event listener removal', () => {
+      const mockHandler = vi.fn();
+
+      sdk.on('data', mockHandler);
+      expect(sdk.listenerCount('data')).toBe(1);
+
+      sdk.off('data', mockHandler);
+      expect(sdk.listenerCount('data')).toBe(0);
+    });
+  });
+
+  describe('API methods', () => {
+    it('should have listDeployments method', () => {
+      expect(typeof sdk.listDeployments).toBe('function');
+    });
+
+    it('should have open method', () => {
+      expect(typeof sdk.open).toBe('function');
+    });
+
+    it('should have close method', () => {
+      expect(typeof sdk.close).toBe('function');
+    });
+
+    it('should have sendClassifyRequest method', () => {
+      expect(typeof sdk.sendClassifyRequest).toBe('function');
+    });
+
+    it('should throw error when sendClassifyRequest called without open', async () => {
+      const input = {
+        data: Buffer.from('test'),
         format: ImageFormat.PNG,
-        correlationId
-      }));
-
-      // Create a promise to wrap the event emitter event 'data'
-      const promise = new Promise<ClassificationOutput[]>((resolve, reject) => {
-        const results: ClassificationOutput[] = [];
-
-        sdk.on('data', (data) => {
-          if (data.globalError) {
-            reject(data.globalError);
-          }
-
-          // Check that all correlationIds are present in the outputs
-          for (const result of data.outputs) {
-            if (correlationIds.includes(result.correlationId)) {
-              results.push(result);
-            }
-          }
-          if (results.length == correlationIds.length) {
-            resolve(results);
-          }
-        });
-        sdk.once('error', (err) => {
-          reject(err);
-        });
-      });
-
-      let error: any = undefined;
-
-      await sdk.open();
-
-      try {
-        await sdk.sendClassifyRequest(inputs);
-      } catch (err) {
-        error = err;
-      }
-
-      // Wait for classifier to process some data....
-      const outputs = await promise;
-      sdk.close();
-
-      expect(error).toBeUndefined();
-
-      outputs.sort((a, b) => a.correlationId.localeCompare(b.correlationId));
-
-      expect(outputs).toBeDefined();
-      // Check that all correlationIds are present in the outputs
-      expect(outputs.length).toBe(correlationIds.length);
-
-      const expectedOutputs = correlationIds.map(id => (
-        {
-          correlationId: id,
-          classifications: expect.toBeOneOf([expect.arrayContaining([
-            {
-              label: expect.any(String),
-              weight: expect.any(Number)
-            }
-          ]), []])
-        }
-      ));
-
-      expect(outputs).toMatchObject(expectedOutputs);
-    }, 120000);
-
-    it('should classify with raw uint8 resize return responses (integration smoke test)', async ({ expect, annotate }) => {
-
-      const imagePath = __dirname + '/448x448.jpg';
-      const sdk = new ClassifierSdk({
-        deploymentId: process.env.VITE_ATHENA_DEPLOYMENT_ID,
-        affiliate: process.env.VITE_ATHENA_AFFILIATE,
-        authentication: {
-          issuerUrl: process.env.VITE_OAUTH_ISSUER,
-          clientId: process.env.VITE_ATHENA_CLIENT_ID,
-          clientSecret: process.env.VITE_ATHENA_CLIENT_SECRET,
-          scope: 'manage:classify'
-        }
-      });
-
-      const correlationId = randomUUID();
-
-      annotate(`Correlation IDs: ${correlationId}`);
-
-      // Create a promise to wrap the event emitter event 'data'
-      const promise = new Promise<ClassificationOutput[]>((resolve, reject) => {
-        // Add a timeout to reject the promise if no data is received in 30 seconds
-        const timeout = setTimeout(() => {
-          reject(new Error('Timeout waiting for classification response'));
-        }, 30000);
-
-        sdk.on('data', (data) => {
-          const byCorrelationId = data.outputs.filter(o => o.correlationId === correlationId);
-          if (byCorrelationId.length > 0) {
-            clearTimeout(timeout);
-            resolve(byCorrelationId);
-          }
-        });
-        sdk.once('error', (err) => {
-          clearTimeout(timeout);
-          reject(err);
-        });
-      });
-
-      // This will fail if no server is running, but will exercise the code path.
-      let error: any = undefined;
-
-      await sdk.open();
-
-      const data = fs.createReadStream(imagePath);
-      const options: ClassifyImageInput = {
-        data,
-        correlationId,
-        resize: true,
       };
-      try {
-        await sdk.sendClassifyRequest(options);
-      } catch (err) {
-        error = err;
-      }
 
-      // Wait for classifier to process some data....
-      const first = await promise;
-      sdk.close();
-
-      expect(first).toBeDefined();
-      expect(first).toMatchObject([
-        {
-          correlationId,
-          classifications: expect.toBeOneOf([expect.arrayContaining([
-            {
-              label: expect.any(String),
-              weight: expect.any(Number)
-            }
-          ]), []])
-        } as ClassificationOutput
-      ]);
-
-      // Accept either a successful call or a connection error (for CI/dev convenience)
-      expect(error).toBeUndefined();
-    }, 120000);
-
-    it('should classify return responses (integration smoke test)', async ({ expect, annotate }) => {
-      // This is a smoke test. You must have a running gRPC server at localhost:50051 for this to pass.
-      // You may want to mock the gRPC client for true unit testing.
-      const imagePath = __dirname + '/448x448.jpg';
-      const sdk = new ClassifierSdk({
-        deploymentId: process.env.VITE_ATHENA_DEPLOYMENT_ID,
-        affiliate: process.env.VITE_ATHENA_AFFILIATE,
-        authentication: {
-          issuerUrl: process.env.VITE_OAUTH_ISSUER,
-          clientId: process.env.VITE_ATHENA_CLIENT_ID,
-          clientSecret: process.env.VITE_ATHENA_CLIENT_SECRET,
-          scope: 'manage:classify'
-        }
-      });
-
-      const correlationId = randomUUID();
-
-      annotate(`Correlation IDs: ${correlationId}`);
-
-      // Create a promise to wrap the event emitter event 'data'
-      const promise = new Promise<ClassificationOutput[]>((resolve, reject) => {
-        // Add a timeout to reject the promise if no data is received in 30 seconds
-        const timeout = setTimeout(() => {
-          reject(new Error('Timeout waiting for classification response'));
-        }, 30000);
-
-        sdk.on('data', (data) => {
-          const byCorrelationId = data.outputs.filter(o => o.correlationId === correlationId);
-          if (byCorrelationId.length > 0) {
-            clearTimeout(timeout);
-            resolve(byCorrelationId);
-          }
-        });
-        sdk.once('error', (err) => {
-          clearTimeout(timeout);
-          reject(err);
-        });
-      });
-
-      // This will fail if no server is running, but will exercise the code path.
-      let error: any = undefined;
-
-      await sdk.open();
-
-      const data = fs.createReadStream(imagePath);
-      const options: ClassifyImageInput = {
-        data,
-        correlationId,
-        format: ImageFormat.JPEG,
-      };
-      try {
-        await sdk.sendClassifyRequest(options);
-      } catch (err) {
-        error = err;
-      }
-
-      // Wait for classifier to process some data....
-      const first = await promise;
-      sdk.close();
-
-      expect(first).toBeDefined();
-      expect(first).toMatchObject([
-        {
-          correlationId,
-          classifications: expect.toBeOneOf([expect.arrayContaining([
-            {
-              label: expect.any(String),
-              weight: expect.any(Number)
-            }
-          ]), []])
-        } as ClassificationOutput
-      ]);
-
-      // Accept either a successful call or a connection error (for CI/dev convenience)
-      expect(error).toBeUndefined();
-    }, 120000);
+      await expect(sdk.sendClassifyRequest(input)).rejects.toThrow(
+        'gRPC stream is not open',
+      );
+    });
   });
 
+  describe('connection lifecycle', () => {
+    it('should handle open/close operations', async () => {
+      // Mock the underlying gRPC operations
+      const mockOpen = vi.spyOn(sdk, 'open').mockResolvedValue(void 0);
+      const mockClose = vi.spyOn(sdk, 'close').mockReturnValue(void 0);
 
+      await sdk.open();
+      expect(mockOpen).toHaveBeenCalled();
+
+      sdk.close();
+      expect(mockClose).toHaveBeenCalled();
+    });
+  });
+
+  describe('error handling', () => {
+    it('should handle connection errors gracefully', () => {
+      const mockErrorHandler = vi.fn();
+      sdk.on('error', mockErrorHandler);
+
+      // Simulate an error
+      sdk.emit('error', new Error('Connection failed'));
+
+      expect(mockErrorHandler).toHaveBeenCalledWith(expect.any(Error));
+    });
+  });
 });

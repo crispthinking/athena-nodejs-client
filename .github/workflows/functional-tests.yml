@@ -1,0 +1,71 @@
+name: Functional Tests
+permissions:
+  contents: read
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to run tests against'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - staging
+      test_pattern:
+        description: 'Test pattern to run (optional)'
+        required: false
+        default: ''
+        type: string
+
+jobs:
+  functional-tests:
+    environment: ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: volta-cli/action@v4
+
+      - name: Install dependencies
+        run: npm ci --no-audit
+
+      - name: Build project
+        run: npm run build --if-present
+
+      - name: Run functional tests
+        run: |
+          if [ -n "${{ inputs.test_pattern }}" ]; then
+            npm run test:functional -- --reporter=verbose --reporter=github-actions --testNamePattern="${{ inputs.test_pattern }}"
+          else
+            npm run test:functional
+          fi
+        env:
+          VITE_ATHENA_CLIENT_ID: ${{ secrets.VITE_ATHENA_CLIENT_ID }}
+          VITE_ATHENA_CLIENT_SECRET: ${{ secrets.VITE_ATHENA_CLIENT_SECRET }}
+          VITE_ATHENA_DEPLOYMENT_ID: ${{ secrets.VITE_ATHENA_DEPLOYMENT_ID }}
+          VITE_ATHENA_AFFILIATE: ${{ secrets.VITE_ATHENA_AFFILIATE }}
+          VITE_OAUTH_ISSUER: ${{ secrets.VITE_OAUTH_ISSUER }}
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: functional-test-results-${{ inputs.environment }}
+          path: |
+            **/*test-results*
+            **/*coverage*
+          retention-days: 30
+
+      - name: Report test summary
+        if: always()
+        run: |
+          echo "## Functional Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "- Environment: ${{ inputs.environment }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Test pattern: ${{ inputs.test_pattern || 'All tests' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Status: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
