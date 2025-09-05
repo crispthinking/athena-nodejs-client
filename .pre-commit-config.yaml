@@ -1,0 +1,30 @@
+# Pre-commit configuration for athena-nodejs-client
+# See https://pre-commit.com for more information
+# See https://pre-commit.com/hooks.html for more hooks
+repos:
+  # General file checks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+      - id: check-json
+        exclude: ^samples/
+      - id: check-merge-conflict
+
+  # Node.js/npm hooks
+  - repo: local
+    hooks:
+      # Run all linting checks
+      - id: lint-all
+        name: Lint All (ESLint + Prettier + TypeScript)
+        entry: npm run lint:all
+        language: system
+        pass_filenames: false
+        always_run: true
+
+# Global settings
+default_stages: [pre-commit]
+fail_fast: true
