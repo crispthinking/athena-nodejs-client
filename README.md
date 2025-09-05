@@ -72,7 +72,7 @@ npm run lint:all
 
 ## Updating the Protobuf definitions
 
-Protobufs are stored as a git submodule from the [@crispthinking/athena-nodejs-client](https://github.com/crispthinking/athena-nodejs-client.git) repository.
+Protobufs are stored as a git submodule from the [crispthinking/athena-protobufs](https://github.com/crispthinking/athena-protobufs.git) repository.
 
 To update the protobuf definitions for client generation:
 
