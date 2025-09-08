@@ -707,7 +707,7 @@ wheels = [
 
 [[package]]
 name = "sphinx-ts"
-version = "0.1.0"
+version = "0.4.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "docutils" },
@@ -717,9 +717,9 @@ dependencies = [
     { name = "tree-sitter" },
     { name = "tree-sitter-typescript" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/01/38/7abedc3952c6845d5378fb9dd06635bd599c62efa00a76ef77e3d40413a7/sphinx_ts-0.1.0.tar.gz", hash = "sha256:bef03bc57f91cdd65d84af1d94855ede4c187f4c9cd4d8fa0642bd9e05c38610", size = 27225, upload-time = "2025-09-04T09:47:03.735Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/9f/d7/78389e4526ae2c4772cc0c4900b3499de5f0b4f156d7a0c506e978099d3a/sphinx_ts-0.4.0.tar.gz", hash = "sha256:27e67e5b8f530c42fa87082c47b62a58fccf5ef1dc1c6ca8a1044806f987f036", size = 30562, upload-time = "2025-09-07T21:15:40.257Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/ff/0d/b23997f180d1015dfaaffd5aacf551878a30be984dadb0185fe9fc3a3260/sphinx_ts-0.1.0-py3-none-any.whl", hash = "sha256:bbea04a81b3a7b2e8af609b91c8632a0e59bf3f7e96faaeacdd2be3e6b950d5a", size = 35491, upload-time = "2025-09-04T09:47:03.006Z" },
+    { url = "https://files.pythonhosted.org/packages/18/5d/092c106f4a102e1e85cb9873fd82848bfc63c9a6b309a81d4c466e4bd525/sphinx_ts-0.4.0-py3-none-any.whl", hash = "sha256:06c980427a27dddf01aedfaa4b09679efb1b9fc99a171176b7a7e3a90cfbb22a", size = 38075, upload-time = "2025-09-07T21:15:38.589Z" },
 ]
 
 [[package]]
