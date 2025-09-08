@@ -8,19 +8,35 @@ on:
 
 jobs:
   build:
-    environment: dev
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: volta-cli/action@v4
-      - run: npm ci --no-audit
-      - run: npm run lint --if-present
-      - run: npm run prettier:check --if-present
-      - run: npm test
-        env:
-          VITE_ATHENA_CLIENT_ID: ${{ secrets.VITE_ATHENA_CLIENT_ID }}
-          VITE_ATHENA_CLIENT_SECRET: ${{ secrets.VITE_ATHENA_CLIENT_SECRET }}
-          VITE_ATHENA_DEPLOYMENT_ID: ${{ secrets.VITE_ATHENA_DEPLOYMENT_ID }}
-          VITE_ATHENA_AFFILIATE: ${{ secrets.VITE_ATHENA_AFFILIATE }}
-          VITE_OAUTH_ISSUER: ${{ secrets.VITE_OAUTH_ISSUER }}
-      - run: npm run build --if-present
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: volta-cli/action@v4
+
+      - name: Install dependencies
+        run: npm ci --no-audit
+
+      - name: Run linting
+        run: npm run lint --if-present
+
+      - name: Check code formatting
+        run: npm run prettier:check --if-present
+
+      - name: Run unit tests
+        run: npm run test:unit
+
+      - name: Build project
+        run: npm run build --if-present
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-results
+          path: |
+            **/*test-results*
+            **/*coverage*
+          retention-days: 7

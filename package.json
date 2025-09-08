@@ -12,7 +12,7 @@
     "README.md",
     "LICENSE"
   ],
-    "exports": {
+  "exports": {
     ".": {
       "import": "./dist/index.js",
       "require": "./dist/index.js"
@@ -52,11 +52,17 @@
     "build:release": "npm run clean && tsc -p tsconfig.release.json",
     "codegen": "npx protoc --plugin=protoc-gen-ts=./node_modules/.bin/protoc-gen-ts --ts_out=import_style=module,client_grpc1:./src/athena --proto_path=./athena-protobufs/athena ./athena-protobufs/athena/athena.proto",
     "lint": "eslint .",
+    "lint:all": "npm run lint && npm run prettier:check && npx tsc --noEmit",
+    "precommit:setup": "echo 'To install pre-commit hooks, run: uv tool install pre-commit && uvx pre-commit install'",
     "test": "vitest run unit --config __tests__/vitest.config.ts",
+    "test:unit": "vitest run unit --config __tests__/vitest.config.ts",
+    "test:functional": "vitest run functional --config __tests__/vitest.functional.config.ts",
     "test:coverage": "vitest run unit --config __tests__/vitest.config.ts --coverage.enabled --coverage.all",
     "prettier": "prettier \"{src,__{tests}__}/**/*.{ts,mts}\" --config .prettierrc --write",
     "prettier:check": "prettier \"{src,__{tests}__}/**/*.{ts,mts}\" --config .prettierrc --check",
-    "test:watch": "vitest unit"
+    "test:watch": "vitest unit",
+    "test:functional:watch": "vitest functional --config __tests__/vitest.functional.config.ts",
+    "test:help": "echo 'Available test commands:\n  npm run test:unit          - Run unit tests (fast, no external deps)\n  npm run test:functional     - Run functional tests (requires env vars)\n  npm run test:coverage       - Run unit tests with coverage\n  npm run test:watch          - Run unit tests in watch mode\n  npm run test:functional:watch - Run functional tests in watch mode\n\nFor functional tests, set these env vars:\n  VITE_ATHENA_CLIENT_ID, VITE_ATHENA_CLIENT_SECRET,\n  VITE_ATHENA_DEPLOYMENT_ID, VITE_ATHENA_AFFILIATE, VITE_OAUTH_ISSUER'"
   },
   "author": "James Abbott <abbottdev@users.noreply.github.com>",
   "license": "MIT",

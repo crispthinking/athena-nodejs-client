@@ -9,7 +9,17 @@ import tseslint from 'typescript-eslint';
 // You should change it to your needs following the documentation.
 export default tseslint.config(
   {
-    ignores: ['**/dist/**', 'samples/**', '.venv/**', '**/__tests__/**', '**/tmp/**', '**/coverage/**', 'src/athena/**'],
+    ignores: [
+      '**/dist/**',
+      'samples/**',
+      '.venv/**',
+      '**/__tests__/**',
+      '**/tmp/**',
+      '**/coverage/**',
+      'src/athena/**',
+      'athena-protobufs/**',
+      'docs/**',
+    ],
   },
   eslint.configs.recommended,
   eslintConfigPrettier,

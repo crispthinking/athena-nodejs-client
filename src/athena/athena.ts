@@ -266,6 +266,20 @@ export enum ErrorCode {
    * @generated from protobuf enum value: ERROR_CODE_AFFILIATE_NOT_PERMITTED = 4;
    */
   AFFILIATE_NOT_PERMITTED = 4,
+  /**
+   * The format of the deployment ID is not valid. Deployment IDs must be
+   * non-empty strings of up to 64 characters.
+   *
+   * @generated from protobuf enum value: ERROR_CODE_DEPLOYMENT_ID_INVALID = 5;
+   */
+  DEPLOYMENT_ID_INVALID = 5,
+  /**
+   * The format of the correlation ID is not valid. Correlation IDs must be
+   * non-empty strings of up to 64 characters.
+   *
+   * @generated from protobuf enum value: ERROR_CODE_CORRELATION_ID_INVALID = 6;
+   */
+  CORRELATION_ID_INVALID = 6,
 }
 /**
  * Enumeration of supported image data encoding formats.
