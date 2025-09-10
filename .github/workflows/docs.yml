@@ -39,7 +39,7 @@ jobs:
         uses: actions/configure-pages@v4
         if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v4
         if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
         with:
           path: docs/build/html
