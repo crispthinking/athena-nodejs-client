@@ -9,14 +9,14 @@ import {
   ClassifyResponse,
   Deployment,
   ImageFormat,
-} from './athena/athena';
+} from './generated/athena/models';
 import * as grpc from '@grpc/grpc-js';
 import {
   type IClassifierServiceClient,
   ClassifierServiceClient,
-} from './athena/athena.grpc-client';
+} from './generated/athena/athena.grpc-client';
 import { EventEmitter } from 'events';
-import { Empty } from './athena/google/protobuf/empty';
+import { Empty } from './generated/google/protobuf/empty';
 import {
   type AuthenticationOptions,
   AuthenticationManager,
@@ -345,6 +345,7 @@ export class ClassifierSdk extends (EventEmitter as new () => TypedEventEmitter<
   }
 }
 
-export * from './athena/athena';
-export * from './athena/athena.grpc-client';
+export * from './generated/athena/models';
+export * from './generated/athena/athena';
+export * from './generated/athena/athena.grpc-client';
 export * from './hashing';

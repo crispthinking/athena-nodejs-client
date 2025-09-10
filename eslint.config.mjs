@@ -19,6 +19,7 @@ export default tseslint.config(
       'src/athena/**',
       'athena-protobufs/**',
       'docs/**',
+      '**/generated/**',
     ],
   },
   eslint.configs.recommended,

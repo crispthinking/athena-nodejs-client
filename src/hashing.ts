@@ -1,7 +1,11 @@
 import { Readable } from 'stream';
 import crypto from 'crypto';
 import sharp from 'sharp';
-import { HashType, ImageFormat, RequestEncoding } from '.';
+import {
+  HashType,
+  ImageFormat,
+  RequestEncoding,
+} from './generated/athena/models';
 import brotli from 'brotli';
 import { buffer } from 'stream/consumers';
 
