@@ -35,6 +35,9 @@ jobs:
       - name: Install dependencies
         run: npm ci --no-audit
 
+      - name: Generate code
+        run: npm run codegen
+
       - name: Build project
         run: npm run build --if-present
 

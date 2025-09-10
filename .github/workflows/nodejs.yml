@@ -19,6 +19,9 @@ jobs:
       - name: Install dependencies
         run: npm ci --no-audit
 
+      - name: Generate code
+        run: npm run codegen
+
       - name: Run linting
         run: npm run lint --if-present
 
