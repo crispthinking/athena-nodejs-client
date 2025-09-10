@@ -11,8 +11,14 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: '22'
-      - run: npm ci
+
+      - name: Submodules
+        run: git submodule update --init --recursive
+
       - run: npm run codegen
+
+      - run: npm ci
+
       - run: npm run build:release
       - uses: JS-DevTools/npm-publish@v3
         with:
