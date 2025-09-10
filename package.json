@@ -34,7 +34,7 @@
     "grpc-tools": "^1.13.0",
     "prettier": "~3.4",
     "rimraf": "~6.0",
-    "ts-api-utils": "~2.0",
+    "ts-api-utils": "~2.1",
     "ts-proto": "^2.7.7",
     "typed-emitter": "^2.1.0",
     "typedoc": "^0.28.12",
