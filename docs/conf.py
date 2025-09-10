@@ -71,7 +71,7 @@ html_theme = "furo"
 html_theme_options = {
     "sidebar_hide_name": False,
     "navigation_with_keys": True,
-    "source_repository": "https://github.com/crispthinking/athena-protobufs/",
+    "source_repository": "https://github.com/crispthinking/athena-nodejs-client/",
     "source_branch": "main",
     "source_directory": "docs/",
     "light_css_variables": {
@@ -111,7 +111,7 @@ html_css_files = ["css/custom.css"]
 html_context = {
     "display_github": True,
     "github_user": "crispthinking",
-    "github_repo": "athena-protobufs",
+    "github_repo": "athena-nodejs-client",
     "github_version": "main",
     "conf_py_path": "/docs/",
 }
@@ -166,7 +166,7 @@ autodoc_default_options = {
 todo_include_todos = True
 
 # Output file name
-htmlhelp_basename = "AthenaProtobufsdoc"
+htmlhelp_basename = "AthenaNodeClientdoc"
 
 # -- TypeScript Sphinx Configuration ----------------------------------------
 
@@ -186,3 +186,8 @@ sphinx_ts_include_private = True
 
 # Whether to include inherited members in class documentation
 sphinx_ts_include_inherited = True
+
+# Source linking configuration
+sphinx_ts_show_source_links = True
+sphinx_ts_source_base_url = "https://github.com/crispthinking/athena-nodejs-client/"
+sphinx_ts_source_branch = "master"
