@@ -1,4 +1,6 @@
-on: workflow_dispatch
+on:
+  release:
+    types: [published]
 
 jobs:
   publish:
@@ -14,6 +16,18 @@ jobs:
 
       - name: Submodules
         run: git submodule update --init --recursive
+
+      - name: Set version from tag
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            TAG_VERSION=${GITHUB_REF#refs/tags/}
+            # Remove 'v' prefix if present
+            VERSION=${TAG_VERSION#v}
+            echo "Setting version to: $VERSION"
+            npm version "$VERSION"
+          else
+            echo "Not building from a tag, using default version"
+          fi
 
       - run: npm run codegen
 
