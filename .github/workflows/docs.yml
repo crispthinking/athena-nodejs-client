@@ -36,7 +36,7 @@ jobs:
           uv run make clean
           uv run make html
       - name: Setup Pages
-        uses: actions/configure-pages@v4
+        uses: actions/configure-pages@v5
         if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
