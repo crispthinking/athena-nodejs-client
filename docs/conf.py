@@ -190,4 +190,4 @@ sphinx_ts_include_inherited = True
 # Source linking configuration
 sphinx_ts_show_source_links = True
 sphinx_ts_source_base_url = "https://github.com/crispthinking/athena-nodejs-client/"
-sphinx_ts_source_branch = "master"
+sphinx_ts_source_branch = "main"
