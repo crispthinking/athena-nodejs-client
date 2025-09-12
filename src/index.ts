@@ -9,6 +9,7 @@ import {
   ClassifyResponse,
   Deployment,
   ImageFormat,
+  ClassificationOutput,
 } from './generated/athena/models';
 import * as grpc from '@grpc/grpc-js';
 import {
@@ -305,6 +306,60 @@ export class ClassifierSdk extends (EventEmitter as new () => TypedEventEmitter<
       } else {
         resolve();
       }
+    });
+  }
+
+  public async classifySingle(
+    request: ClassifyImageInput,
+  ): Promise<ClassificationOutput> {
+    const options = {
+      affiliate: this.options.affiliate,
+      correlationId: randomUUID().toString(),
+      includeHashes: [HashType.MD5, HashType.SHA1],
+      encoding: RequestEncoding.UNCOMPRESSED,
+    };
+
+    let inputFormat: ImageFormat = ImageFormat.UNSPECIFIED;
+
+    if ('resize' in request === false) {
+      inputFormat = request.format;
+    }
+
+    const { md5, sha1, data, format } = await computeHashesFromStream(
+      request.data,
+      options.encoding,
+      inputFormat,
+      'resize' in options,
+      options.includeHashes,
+    );
+
+    const hashes: ImageHash[] = [];
+
+    if (md5 && md5.trim() != '') {
+      hashes.push({ value: md5, type: HashType.MD5 });
+    }
+
+    if (sha1 && sha1.trim() != '') {
+      hashes.push({ value: sha1, type: HashType.SHA1 });
+    }
+
+    const input: ClassificationInput = {
+      affiliate: this.options.affiliate,
+      correlationId: options.correlationId,
+      data: data,
+      format: format,
+      encoding: RequestEncoding.UNCOMPRESSED,
+      hashes: hashes,
+    };
+
+    return new Promise<ClassificationOutput>((resolve, reject) => {
+      this.client.classifySingle(input, (err, response) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(response);
+        }
+      });
     });
   }
 

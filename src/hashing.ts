@@ -68,7 +68,7 @@ export async function computeHashesFromStream(
   }
 
   if (encoding === RequestEncoding.BROTLI) {
-    data = Buffer.from(await brotli.compress(data));
+    data = Buffer.from(brotli.compress(data));
   }
 
   return {
