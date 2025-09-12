@@ -24,7 +24,7 @@ jobs:
             # Remove 'v' prefix if present
             VERSION=${TAG_VERSION#v}
             echo "Setting version to: $VERSION"
-            npm version "$VERSION"
+            npm --no-git-tag-version version "$VERSION"
           else
             echo "Not building from a tag, using default version"
           fi
