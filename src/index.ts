@@ -9,14 +9,15 @@ import {
   ClassifyResponse,
   Deployment,
   ImageFormat,
-} from './athena/athena';
+  ClassificationOutput,
+} from './generated/athena/models';
 import * as grpc from '@grpc/grpc-js';
 import {
   type IClassifierServiceClient,
   ClassifierServiceClient,
-} from './athena/athena.grpc-client';
+} from './generated/athena/athena.grpc-client';
 import { EventEmitter } from 'events';
-import { Empty } from './athena/google/protobuf/empty';
+import { Empty } from './generated/google/protobuf/empty';
 import {
   type AuthenticationOptions,
   AuthenticationManager,
@@ -308,6 +309,60 @@ export class ClassifierSdk extends (EventEmitter as new () => TypedEventEmitter<
     });
   }
 
+  public async classifySingle(
+    request: ClassifyImageInput,
+  ): Promise<ClassificationOutput> {
+    const options = {
+      affiliate: this.options.affiliate,
+      correlationId: randomUUID().toString(),
+      includeHashes: [HashType.MD5, HashType.SHA1],
+      encoding: request.encoding,
+    };
+
+    let inputFormat: ImageFormat = ImageFormat.UNSPECIFIED;
+
+    if ('resize' in request === false) {
+      inputFormat = request.format;
+    }
+
+    const { md5, sha1, data, format } = await computeHashesFromStream(
+      request.data,
+      options.encoding,
+      inputFormat,
+      'resize' in request,
+      options.includeHashes,
+    );
+
+    const hashes: ImageHash[] = [];
+
+    if (md5 && md5.trim() != '') {
+      hashes.push({ value: md5, type: HashType.MD5 });
+    }
+
+    if (sha1 && sha1.trim() != '') {
+      hashes.push({ value: sha1, type: HashType.SHA1 });
+    }
+
+    const input: ClassificationInput = {
+      affiliate: this.options.affiliate,
+      correlationId: options.correlationId,
+      data: data,
+      format: format,
+      encoding: options.encoding,
+      hashes: hashes,
+    };
+
+    return new Promise<ClassificationOutput>((resolve, reject) => {
+      this.client.classifySingle(input, (err, response) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(response);
+        }
+      });
+    });
+  }
+
   /**
    * Closes the gRPC stream and cleans up resources.
    * Emits 'close' event.
@@ -345,6 +400,7 @@ export class ClassifierSdk extends (EventEmitter as new () => TypedEventEmitter<
   }
 }
 
-export * from './athena/athena';
-export * from './athena/athena.grpc-client';
+export * from './generated/athena/models';
+export * from './generated/athena/athena';
+export * from './generated/athena/athena.grpc-client';
 export * from './hashing';

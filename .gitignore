@@ -31,3 +31,5 @@ dist/
 .env
 
 .venv
+
+src/generated

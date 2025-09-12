@@ -29,11 +29,17 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v5
 
+      - name: Submodules
+        run: git submodule update --init --recursive
+
       - name: Setup Node.js
         uses: volta-cli/action@v4
 
       - name: Install dependencies
         run: npm ci --no-audit
+
+      - name: Generate code
+        run: npm run codegen
 
       - name: Build project
         run: npm run build --if-present
