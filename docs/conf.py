@@ -19,7 +19,7 @@ sys.path.insert(0, str(Path("../athena").resolve()))
 # Project information
 project = "Athena Classifier NodeJS SDK"
 copyright = f"{datetime.now(timezone.utc).year}, Crisp"
-author = "Crisp Thinking Gorup Ltd."
+author = "Crisp Thinking Group Ltd."
 release = "1.0.0"
 
 js_language = "typescript"
