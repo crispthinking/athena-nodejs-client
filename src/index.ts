@@ -329,7 +329,7 @@ export class ClassifierSdk extends (EventEmitter as new () => TypedEventEmitter<
       request.data,
       options.encoding,
       inputFormat,
-      'resize' in options,
+      'resize' in request,
       options.includeHashes,
     );
 
