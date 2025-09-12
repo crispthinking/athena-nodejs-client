@@ -316,7 +316,7 @@ export class ClassifierSdk extends (EventEmitter as new () => TypedEventEmitter<
       affiliate: this.options.affiliate,
       correlationId: randomUUID().toString(),
       includeHashes: [HashType.MD5, HashType.SHA1],
-      encoding: RequestEncoding.UNCOMPRESSED,
+      encoding: request.encoding,
     };
 
     let inputFormat: ImageFormat = ImageFormat.UNSPECIFIED;
@@ -348,7 +348,7 @@ export class ClassifierSdk extends (EventEmitter as new () => TypedEventEmitter<
       correlationId: options.correlationId,
       data: data,
       format: format,
-      encoding: RequestEncoding.UNCOMPRESSED,
+      encoding: options.encoding,
       hashes: hashes,
     };
 
