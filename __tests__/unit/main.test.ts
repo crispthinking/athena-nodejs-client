@@ -122,6 +122,10 @@ describe('ClassifierSdk', () => {
       expect(typeof sdk.sendClassifyRequest).toBe('function');
     });
 
+    it('should have classifySingle method', () => {
+      expect(typeof sdk.classifySingle).toBe('function');
+    });
+
     it('should throw error when sendClassifyRequest called without open', async () => {
       const input = {
         data: Buffer.from('test'),

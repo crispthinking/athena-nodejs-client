@@ -1,11 +1,18 @@
-import { describe, it, } from 'vitest';
-import { ClassificationOutput, ClassifierSdk, type ClassifyImageInput, ImageFormat } from '../../src';
+import { describe, it } from 'vitest';
+import {
+  ClassificationOutput,
+  ClassifierSdk,
+  type ClassifyImageInput,
+  ImageFormat,
+} from '../../src';
 import fs from 'fs';
 import { randomUUID } from 'crypto';
 
 describe('ClassifierSdk Functional Tests', () => {
   describe('listDeployments', () => {
-    it('should listDeployments and return responses (smoke test)', async ({ expect }) => {
+    it('should listDeployments and return responses (smoke test)', async ({
+      expect,
+    }) => {
       // This is a smoke test. You must have a running gRPC server at localhost:50051 for this to pass.
       // You may want to mock the gRPC client for true unit testing.
       const sdk = new ClassifierSdk({
@@ -15,8 +22,8 @@ describe('ClassifierSdk Functional Tests', () => {
           issuerUrl: process.env.VITE_OAUTH_ISSUER,
           clientId: process.env.VITE_ATHENA_CLIENT_ID,
           clientSecret: process.env.VITE_ATHENA_CLIENT_SECRET,
-          scope: 'manage:classify'
-        }
+          scope: 'manage:classify',
+        },
       });
 
       let error: any = null;
@@ -28,11 +35,41 @@ describe('ClassifierSdk Functional Tests', () => {
       }
       // Assert error is unset
       expect(error).toBeNull();
-    }, 10000)
+    }, 10000);
+  });
+
+  describe('classifySingle', () => {
+    it('should classify a single image and return the response', async ({
+      expect,
+    }) => {
+      const imagePath = __dirname + '/448x448.jpg';
+      const sdk = new ClassifierSdk({
+        deploymentId: process.env.VITE_ATHENA_DEPLOYMENT_ID,
+        affiliate: process.env.VITE_ATHENA_AFFILIATE,
+        authentication: {
+          issuerUrl: process.env.VITE_OAUTH_ISSUER,
+          clientId: process.env.VITE_ATHENA_CLIENT_ID,
+          clientSecret: process.env.VITE_ATHENA_CLIENT_SECRET,
+          scope: 'manage:classify',
+        },
+      });
+
+      const input: ClassifyImageInput = {
+        data: fs.createReadStream(imagePath),
+        format: ImageFormat.PNG,
+      };
+
+      const response = await sdk.classifySingle(input);
+      expect(response.classifications).toBe(true);
+      expect(response.error).toBeNull();
+    }, 10000);
   });
 
   describe('classifyImage', () => {
-    it('should classify 10 images in a single request and return responses (integration smoke test)', async ({ expect, annotate }) => {
+    it('should classify 10 images in a single request and return responses (integration smoke test)', async ({
+      expect,
+      annotate,
+    }) => {
       // This is a smoke test. You must have a running gRPC server at localhost:50051 for this to pass.
       // You may want to mock the gRPC client for true unit testing.
       const imagePath = __dirname + '/448x448.jpg';
@@ -43,23 +80,27 @@ describe('ClassifierSdk Functional Tests', () => {
           issuerUrl: process.env.VITE_OAUTH_ISSUER,
           clientId: process.env.VITE_ATHENA_CLIENT_ID,
           clientSecret: process.env.VITE_ATHENA_CLIENT_SECRET,
-          scope: 'manage:classify'
-        }
+          scope: 'manage:classify',
+        },
       });
 
       // Generate 10 unique correlationIds
-      const correlationIds = Array.from({ length: 10 }, () => randomUUID().toString());
+      const correlationIds = Array.from({ length: 10 }, () =>
+        randomUUID().toString(),
+      );
 
       correlationIds.sort((a, b) => a.localeCompare(b));
 
       annotate(`Correlation IDs: ${correlationIds.join(', ')}`);
 
       // Create 10 input objects, each with a new stream and unique correlationId
-      const inputs: ClassifyImageInput[] = correlationIds.map((correlationId) => ({
-        data: fs.createReadStream(imagePath),
-        format: ImageFormat.PNG,
-        correlationId
-      }));
+      const inputs: ClassifyImageInput[] = correlationIds.map(
+        (correlationId) => ({
+          data: fs.createReadStream(imagePath),
+          format: ImageFormat.PNG,
+          correlationId,
+        }),
+      );
 
       // Create a promise to wrap the event emitter event 'data'
       const promise = new Promise<ClassificationOutput[]>((resolve, reject) => {
@@ -107,23 +148,26 @@ describe('ClassifierSdk Functional Tests', () => {
       // Check that all correlationIds are present in the outputs
       expect(outputs.length).toBe(correlationIds.length);
 
-      const expectedOutputs = correlationIds.map(id => (
-        {
-          correlationId: id,
-          classifications: expect.toBeOneOf([expect.arrayContaining([
+      const expectedOutputs = correlationIds.map((id) => ({
+        correlationId: id,
+        classifications: expect.toBeOneOf([
+          expect.arrayContaining([
             {
               label: expect.any(String),
-              weight: expect.any(Number)
-            }
-          ]), []])
-        }
-      ));
+              weight: expect.any(Number),
+            },
+          ]),
+          [],
+        ]),
+      }));
 
       expect(outputs).toMatchObject(expectedOutputs);
     }, 120000);
 
-    it('should classify with raw uint8 resize return responses (integration smoke test)', async ({ expect, annotate }) => {
-
+    it('should classify with raw uint8 resize return responses (integration smoke test)', async ({
+      expect,
+      annotate,
+    }) => {
       const imagePath = __dirname + '/448x448.jpg';
       const sdk = new ClassifierSdk({
         deploymentId: process.env.VITE_ATHENA_DEPLOYMENT_ID,
@@ -132,8 +176,8 @@ describe('ClassifierSdk Functional Tests', () => {
           issuerUrl: process.env.VITE_OAUTH_ISSUER,
           clientId: process.env.VITE_ATHENA_CLIENT_ID,
           clientSecret: process.env.VITE_ATHENA_CLIENT_SECRET,
-          scope: 'manage:classify'
-        }
+          scope: 'manage:classify',
+        },
       });
 
       const correlationId = randomUUID();
@@ -148,7 +192,9 @@ describe('ClassifierSdk Functional Tests', () => {
         }, 30000);
 
         sdk.on('data', (data) => {
-          const byCorrelationId = data.outputs.filter(o => o.correlationId === correlationId);
+          const byCorrelationId = data.outputs.filter(
+            (o) => o.correlationId === correlationId,
+          );
           if (byCorrelationId.length > 0) {
             clearTimeout(timeout);
             resolve(byCorrelationId);
@@ -185,20 +231,26 @@ describe('ClassifierSdk Functional Tests', () => {
       expect(first).toMatchObject([
         {
           correlationId,
-          classifications: expect.toBeOneOf([expect.arrayContaining([
-            {
-              label: expect.any(String),
-              weight: expect.any(Number)
-            }
-          ]), []])
-        } as ClassificationOutput
+          classifications: expect.toBeOneOf([
+            expect.arrayContaining([
+              {
+                label: expect.any(String),
+                weight: expect.any(Number),
+              },
+            ]),
+            [],
+          ]),
+        } as ClassificationOutput,
       ]);
 
       // Accept either a successful call or a connection error (for CI/dev convenience)
       expect(error).toBeUndefined();
     }, 120000);
 
-    it('should classify return responses (integration smoke test)', async ({ expect, annotate }) => {
+    it('should classify return responses (integration smoke test)', async ({
+      expect,
+      annotate,
+    }) => {
       // This is a smoke test. You must have a running gRPC server at localhost:50051 for this to pass.
       // You may want to mock the gRPC client for true unit testing.
       const imagePath = __dirname + '/448x448.jpg';
@@ -209,8 +261,8 @@ describe('ClassifierSdk Functional Tests', () => {
           issuerUrl: process.env.VITE_OAUTH_ISSUER,
           clientId: process.env.VITE_ATHENA_CLIENT_ID,
           clientSecret: process.env.VITE_ATHENA_CLIENT_SECRET,
-          scope: 'manage:classify'
-        }
+          scope: 'manage:classify',
+        },
       });
 
       const correlationId = randomUUID();
@@ -225,7 +277,9 @@ describe('ClassifierSdk Functional Tests', () => {
         }, 30000);
 
         sdk.on('data', (data) => {
-          const byCorrelationId = data.outputs.filter(o => o.correlationId === correlationId);
+          const byCorrelationId = data.outputs.filter(
+            (o) => o.correlationId === correlationId,
+          );
           if (byCorrelationId.length > 0) {
             clearTimeout(timeout);
             resolve(byCorrelationId);
@@ -262,13 +316,16 @@ describe('ClassifierSdk Functional Tests', () => {
       expect(first).toMatchObject([
         {
           correlationId,
-          classifications: expect.toBeOneOf([expect.arrayContaining([
-            {
-              label: expect.any(String),
-              weight: expect.any(Number)
-            }
-          ]), []])
-        } as ClassificationOutput
+          classifications: expect.toBeOneOf([
+            expect.arrayContaining([
+              {
+                label: expect.any(String),
+                weight: expect.any(Number),
+              },
+            ]),
+            [],
+          ]),
+        } as ClassificationOutput,
       ]);
 
       // Accept either a successful call or a connection error (for CI/dev convenience)
