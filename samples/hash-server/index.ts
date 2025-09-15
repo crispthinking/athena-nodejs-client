@@ -8,7 +8,7 @@ const sdk = new ClassifierSdk({
   authentication: {
     clientId: process.env.VITE_ATHENA_CLIENT_ID,
     clientSecret: process.env.VITE_ATHENA_CLIENT_SECRET,
-    issuer: process.env.VITE_OAUTH_ISSUER,
+    issuerUrl: process.env.VITE_OAUTH_ISSUER,
     scope: "manage:classify"
   },
   grpcAddress: 'csam-classification-messages.crispdev.com:443',

@@ -24,7 +24,7 @@ Usage Example
      deploymentId: 'your-deployment-id',
      affiliate: 'your-affiliate',
      authentication: {
-       issuer: 'https://issuer.example.com',
+       issuerUrl: 'https://issuer.example.com',
        clientId: 'your-client-id',
        clientSecret: 'your-client-secret',
        scope: 'manage:classify'

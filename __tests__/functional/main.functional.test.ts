@@ -56,7 +56,7 @@ describe('ClassifierSdk Functional Tests', () => {
 
       const input: ClassifyImageInput = {
         data: fs.createReadStream(imagePath),
-        format: ImageFormat.PNG,
+        format: ImageFormat.IMAGE_FORMAT_PNG,
       };
 
       const response = await sdk.classifySingle(input);
@@ -97,7 +97,7 @@ describe('ClassifierSdk Functional Tests', () => {
       const inputs: ClassifyImageInput[] = correlationIds.map(
         (correlationId) => ({
           data: fs.createReadStream(imagePath),
-          format: ImageFormat.PNG,
+          format: ImageFormat.IMAGE_FORMAT_PNG,
           correlationId,
         }),
       );
@@ -300,7 +300,7 @@ describe('ClassifierSdk Functional Tests', () => {
       const options: ClassifyImageInput = {
         data,
         correlationId,
-        format: ImageFormat.JPEG,
+        format: ImageFormat.IMAGE_FORMAT_JPEG,
       };
       try {
         await sdk.sendClassifyRequest(options);
