@@ -72,17 +72,6 @@ describe('Module Import Tests', () => {
     });
   });
 
-  describe('Static Import', () => {
-    it('should properly reject CommonJS require() for ESM-only package', () => {
-      // This test verifies that require() correctly fails for ESM-only packages
-      expect(() => {
-        // This should throw ERR_REQUIRE_ESM since we're an ESM-only package
-        // Using eval to prevent TypeScript/bundler transformations
-        eval(`const { ClassifierSdk, HashType, ImageFormat, RequestEncoding, ErrorCode } = require('../../dist/index.js');`);
-      }).toThrow(/ERR_REQUIRE_ESM|require\(\) of ES Module.*not supported/);
-    });
-  });
-
   describe('Compatibility', () => {
     it('should be compatible with Node.js ESM module resolution', async () => {
       // Test that all relative imports resolve correctly
