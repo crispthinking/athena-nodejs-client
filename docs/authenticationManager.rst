@@ -12,7 +12,7 @@ Manages OAuth authentication and token refresh for the Athena gRPC client.  Hand
 
 .. code-block:: typescript
 
-   import { AuthenticationManager } from './authenticationManager';
+   import { AuthenticationManager } from '@crispthinking/athena-classifier-sdk';
    const auth = new AuthenticationManager({
        clientId: 'your-client-id',
        clientSecret: 'your-client-secret',

@@ -2,7 +2,28 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ClassifierSdk, ImageFormat } from '../../src';
 
 // Mock the dependencies
-vi.mock('@grpc/grpc-js');
+vi.mock('@grpc/grpc-js', () => ({
+  credentials: {
+    createSsl: vi.fn(() => ({ type: 'ssl' })),
+  },
+  makeGenericClientConstructor: vi.fn((service, serviceName) => {
+    // Return a mock constructor that behaves like a gRPC client
+    function MockClient(address, credentials, options) {
+      this.address = address;
+      this.credentials = credentials;
+      this.options = options;
+      // Mock the gRPC client methods
+      this.classify = vi.fn();
+      this.listDeployments = vi.fn();
+      this.classifySingle = vi.fn();
+    }
+    MockClient.service = service;
+    MockClient.serviceName = serviceName;
+    return MockClient;
+  }),
+  // Add other grpc exports that might be needed
+  Metadata: vi.fn(() => ({})),
+}));
 vi.mock('../../src/authenticationManager');
 
 describe('ClassifierSdk', () => {
@@ -64,15 +85,15 @@ describe('ClassifierSdk', () => {
 
   describe('ImageFormat enum', () => {
     it('should have all expected image formats', () => {
-      expect(ImageFormat.PNG).toBeDefined();
-      expect(ImageFormat.JPEG).toBeDefined();
-      expect(ImageFormat.RAW_UINT8).toBeDefined();
+      expect(ImageFormat.IMAGE_FORMAT_PNG).toBeDefined();
+      expect(ImageFormat.IMAGE_FORMAT_JPEG).toBeDefined();
+      expect(ImageFormat.IMAGE_FORMAT_RAW_UINT8).toBeDefined();
     });
 
     it('should have correct values for image formats', () => {
-      expect(typeof ImageFormat.PNG).toBe('number');
-      expect(typeof ImageFormat.JPEG).toBe('number');
-      expect(typeof ImageFormat.RAW_UINT8).toBe('number');
+      expect(typeof ImageFormat.IMAGE_FORMAT_PNG).toBe('number');
+      expect(typeof ImageFormat.IMAGE_FORMAT_JPEG).toBe('number');
+      expect(typeof ImageFormat.IMAGE_FORMAT_RAW_UINT8).toBe('number');
     });
   });
 
@@ -129,7 +150,7 @@ describe('ClassifierSdk', () => {
     it('should throw error when sendClassifyRequest called without open', async () => {
       const input = {
         data: Buffer.from('test'),
-        format: ImageFormat.PNG,
+        format: ImageFormat.IMAGE_FORMAT_PNG,
       };
 
       await expect(sdk.sendClassifyRequest(input)).rejects.toThrow(

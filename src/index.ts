@@ -10,30 +10,27 @@ import {
   Deployment,
   ImageFormat,
   ClassificationOutput,
-} from './generated/athena/models';
+} from './generated/athena/models.js';
 import * as grpc from '@grpc/grpc-js';
-import {
-  type IClassifierServiceClient,
-  ClassifierServiceClient,
-} from './generated/athena/athena.grpc-client';
+import { ClassifierServiceClient } from './generated/athena/athena.js';
 import { EventEmitter } from 'events';
-import { Empty } from './generated/google/protobuf/empty';
+import { Empty } from './generated/google/protobuf/empty.js';
 import {
   type AuthenticationOptions,
   AuthenticationManager,
-} from './authenticationManager';
-import { computeHashesFromStream } from './hashing';
+} from './authenticationManager.js';
+import { computeHashesFromStream } from './hashing.js';
 import type TypedEventEmitter from 'typed-emitter';
 
 /**
  * Options for the classifyImage method.
  * @property affiliate Optional affiliate identifier for the request.
  * @property correlationId Optional correlation ID for tracking the request.
- * @property imageStream The image data as a readable stream.
+ * @property data The image data as a readable stream or buffer.
  * @property encoding Optional encoding type for the image data.
  * @property format Optional image format.
  * @property resize Optional flag to resize the image.
- * @property hashes Array of hash types to compute.
+ * @property includeHashes Array of hash types to compute.
  */
 export type ClassifyImageInput = {
   affiliate?: string;
@@ -93,7 +90,7 @@ export const defaultGrpcAddress = 'trust.messages.crispthinking.com:443';
  */
 export class ClassifierSdk extends (EventEmitter as new () => TypedEventEmitter<ClassifierEvents>) {
   private grpcAddress: string;
-  private client: IClassifierServiceClient;
+  private client: ClassifierServiceClient;
   private classifierGrpcCall: grpc.ClientDuplexStream<
     ClassifyRequest,
     ClassifyResponse
@@ -253,11 +250,11 @@ export class ClassifierSdk extends (EventEmitter as new () => TypedEventEmitter<
         affiliate = this.options.affiliate,
         correlationId = randomUUID().toString(),
         data: inputData,
-        includeHashes = [HashType.MD5, HashType.SHA1],
-        encoding = RequestEncoding.UNCOMPRESSED,
+        includeHashes = [HashType.HASH_TYPE_MD5, HashType.HASH_TYPE_SHA1],
+        encoding = RequestEncoding.REQUEST_ENCODING_UNCOMPRESSED,
       } = options;
 
-      let inputFormat: ImageFormat = ImageFormat.UNSPECIFIED;
+      let inputFormat: ImageFormat = ImageFormat.IMAGE_FORMAT_UNSPECIFIED;
 
       if ('resize' in options === false) {
         inputFormat = options.format;
@@ -274,11 +271,11 @@ export class ClassifierSdk extends (EventEmitter as new () => TypedEventEmitter<
       const hashes: ImageHash[] = [];
 
       if (md5 && md5.trim() != '') {
-        hashes.push({ value: md5, type: HashType.MD5 });
+        hashes.push({ value: md5, type: HashType.HASH_TYPE_MD5 });
       }
 
       if (sha1 && sha1.trim() != '') {
-        hashes.push({ value: sha1, type: HashType.SHA1 });
+        hashes.push({ value: sha1, type: HashType.HASH_TYPE_SHA1 });
       }
 
       processedInputs.push({
@@ -314,11 +311,11 @@ export class ClassifierSdk extends (EventEmitter as new () => TypedEventEmitter<
     const options = {
       affiliate: this.options.affiliate,
       correlationId: randomUUID().toString(),
-      includeHashes: [HashType.MD5, HashType.SHA1],
+      includeHashes: [HashType.HASH_TYPE_MD5, HashType.HASH_TYPE_SHA1],
       encoding: request.encoding,
     };
 
-    let inputFormat: ImageFormat = ImageFormat.UNSPECIFIED;
+    let inputFormat: ImageFormat = ImageFormat.IMAGE_FORMAT_UNSPECIFIED;
 
     if ('resize' in request === false) {
       inputFormat = request.format;
@@ -335,11 +332,11 @@ export class ClassifierSdk extends (EventEmitter as new () => TypedEventEmitter<
     const hashes: ImageHash[] = [];
 
     if (md5 && md5.trim() != '') {
-      hashes.push({ value: md5, type: HashType.MD5 });
+      hashes.push({ value: md5, type: HashType.HASH_TYPE_MD5 });
     }
 
     if (sha1 && sha1.trim() != '') {
-      hashes.push({ value: sha1, type: HashType.SHA1 });
+      hashes.push({ value: sha1, type: HashType.HASH_TYPE_SHA1 });
     }
 
     const input: ClassificationInput = {
@@ -399,7 +396,6 @@ export class ClassifierSdk extends (EventEmitter as new () => TypedEventEmitter<
   }
 }
 
-export * from './generated/athena/models';
-export * from './generated/athena/athena';
-export * from './generated/athena/athena.grpc-client';
-export * from './hashing';
+export * from './generated/athena/models.js';
+export { ClassifierServiceClient } from './generated/athena/athena.js';
+export * from './hashing.js';
