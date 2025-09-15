@@ -21,7 +21,9 @@ export type AuthenticationOptions = {
   /** Whether to automatically refresh the access token. */
   autoRefresh?: boolean;
   /** OAuth scope to request. */
-  scope: 'manage:classify';
+  scope?: string;
+  /** OAuth audience to request. */
+  audience?: 'crisp-athena-live';
 };
 
 /**
@@ -118,12 +120,12 @@ export class AuthenticationManager {
     if (this.token === undefined) {
       if (this.options.scope) {
         this.token = await clientCredentialsGrant(this.discovery, {
-          audience: 'crisp-athena-dev',
+          audience: 'crisp-athena-live',
           scope: this.options.scope,
         });
       } else {
         this.token = await clientCredentialsGrant(this.discovery, {
-          audience: 'crisp-athena-dev',
+          audience: 'crisp-athena-live',
         });
       }
 

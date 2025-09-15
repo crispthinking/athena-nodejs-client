@@ -1,5 +1,8 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { AuthenticationManager, type AuthenticationOptions } from '../../src/authenticationManager';
+import {
+  AuthenticationManager,
+  type AuthenticationOptions,
+} from '../../src/authenticationManager';
 import * as openidClient from 'openid-client';
 import * as jwtDecodeModule from 'jwt-decode';
 import * as grpc from '@grpc/grpc-js';
@@ -43,7 +46,7 @@ describe('AuthenticationManager', () => {
     );
     expect(openidClient.clientCredentialsGrant).toHaveBeenCalledWith(
       mockDiscovery,
-      { audience: 'crisp-athena-dev', scope: options.scope }
+      { audience: 'crisp-athena-live', scope: options.scope },
     );
   });
 
@@ -67,7 +70,9 @@ describe('AuthenticationManager', () => {
       ...mockToken,
       access_token: 'new_access_token',
     });
-    (jwtDecodeModule.jwtDecode as any).mockReturnValue({ exp: Math.floor(Date.now() / 1000) + 3600 });
+    (jwtDecodeModule.jwtDecode as any).mockReturnValue({
+      exp: Math.floor(Date.now() / 1000) + 3600,
+    });
 
     const header = await manager.getAuthenticationHeader();
     expect(openidClient.refreshTokenGrant).toHaveBeenCalled();
@@ -82,7 +87,9 @@ describe('AuthenticationManager', () => {
       ...mockToken,
       access_token: 'reacquired_access_token',
     });
-    (jwtDecodeModule.jwtDecode as any).mockReturnValue({ exp: Math.floor(Date.now() / 1000) + 3600 });
+    (jwtDecodeModule.jwtDecode as any).mockReturnValue({
+      exp: Math.floor(Date.now() / 1000) + 3600,
+    });
 
     const header = await manager.getAuthenticationHeader();
     expect(openidClient.clientCredentialsGrant).toHaveBeenCalled();
@@ -93,12 +100,16 @@ describe('AuthenticationManager', () => {
     await manager.getAuthenticationHeader();
     (manager as any).tokenExpiration = new Date(Date.now() - 1000); // expired
     (manager as any).token.refresh_token = 'mock_refresh_token';
-    (openidClient.refreshTokenGrant as any).mockRejectedValue(new Error('refresh failed'));
+    (openidClient.refreshTokenGrant as any).mockRejectedValue(
+      new Error('refresh failed'),
+    );
     (openidClient.clientCredentialsGrant as any).mockResolvedValue({
       ...mockToken,
       access_token: 'fallback_access_token',
     });
-    (jwtDecodeModule.jwtDecode as any).mockReturnValue({ exp: Math.floor(Date.now() / 1000) + 3600 });
+    (jwtDecodeModule.jwtDecode as any).mockReturnValue({
+      exp: Math.floor(Date.now() / 1000) + 3600,
+    });
 
     const header = await manager.getAuthenticationHeader();
     expect(openidClient.refreshTokenGrant).toHaveBeenCalled();
