@@ -2,7 +2,28 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ClassifierSdk, ImageFormat } from '../../src';
 
 // Mock the dependencies
-vi.mock('@grpc/grpc-js');
+vi.mock('@grpc/grpc-js', () => ({
+  credentials: {
+    createSsl: vi.fn(() => ({ type: 'ssl' })),
+  },
+  makeGenericClientConstructor: vi.fn((service, serviceName) => {
+    // Return a mock constructor that behaves like a gRPC client
+    function MockClient(address, credentials, options) {
+      this.address = address;
+      this.credentials = credentials;
+      this.options = options;
+      // Mock the gRPC client methods
+      this.classify = vi.fn();
+      this.listDeployments = vi.fn();
+      this.classifySingle = vi.fn();
+    }
+    MockClient.service = service;
+    MockClient.serviceName = serviceName;
+    return MockClient;
+  }),
+  // Add other grpc exports that might be needed
+  Metadata: vi.fn(() => ({})),
+}));
 vi.mock('../../src/authenticationManager');
 
 describe('ClassifierSdk', () => {
