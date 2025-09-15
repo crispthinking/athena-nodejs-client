@@ -33,7 +33,7 @@ jobs:
       - run: npm run codegen
 
       - run: npm run build:release
-      - uses: JS-DevTools/npm-publish@v3
+      - uses: JS-DevTools/npm-publish@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           registry: 'https://npm.pkg.github.com'
