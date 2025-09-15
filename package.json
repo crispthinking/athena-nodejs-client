@@ -43,7 +43,7 @@
   },
   "scripts": {
     "start": "node build/src/main.js",
-    "clean": "rimraf coverage build tmp",
+    "clean": "rimraf coverage build tmp dist",
     "prebuild": "npm run lint",
     "build:documentation": "typedoc --readme ./README.md src/main.ts",
     "build": "tsc -p tsconfig.json",
