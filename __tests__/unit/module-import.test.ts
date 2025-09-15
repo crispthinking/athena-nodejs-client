@@ -77,8 +77,8 @@ describe('Module Import Tests', () => {
       // This test verifies that require() correctly fails for ESM-only packages
       expect(() => {
         // This should throw ERR_REQUIRE_ESM since we're an ESM-only package
-        const { ClassifierSdk, HashType, ImageFormat, RequestEncoding, ErrorCode } = require('../../dist/index.js');
-        return { ClassifierSdk, HashType, ImageFormat, RequestEncoding, ErrorCode };
+        // Using eval to prevent TypeScript/bundler transformations
+        eval(`const { ClassifierSdk, HashType, ImageFormat, RequestEncoding, ErrorCode } = require('../../dist/index.js');`);
       }).toThrow(/ERR_REQUIRE_ESM|require\(\) of ES Module.*not supported/);
     });
   });
