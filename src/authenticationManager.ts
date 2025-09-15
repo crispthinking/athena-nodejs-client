@@ -21,7 +21,9 @@ export type AuthenticationOptions = {
   /** Whether to automatically refresh the access token. */
   autoRefresh?: boolean;
   /** OAuth scope to request. */
-  scope: 'manage:classify';
+  scope?: string;
+  /** OAuth audience to request. */
+  audience?: 'crisp-athena-live';
 };
 
 /**
@@ -41,6 +43,10 @@ export class AuthenticationManager {
    */
   constructor(options: AuthenticationOptions) {
     this.options = options;
+
+    if (!this.options.issuerUrl) {
+      this.options.issuerUrl = 'https://crispthinking.auth0.com/';
+    }
   }
 
   /**
@@ -112,10 +118,17 @@ export class AuthenticationManager {
     }
 
     if (this.token === undefined) {
-      this.token = await clientCredentialsGrant(this.discovery, {
-        audience: 'crisp-athena-dev',
-        scope: this.options.scope,
-      });
+      if (this.options.scope) {
+        this.token = await clientCredentialsGrant(this.discovery, {
+          audience: 'crisp-athena-live',
+          scope: this.options.scope,
+        });
+      } else {
+        this.token = await clientCredentialsGrant(this.discovery, {
+          audience: 'crisp-athena-live',
+        });
+      }
+
       this.decoded = jwtDecode(this.token.access_token);
 
       // Calculate expiry date of jwt
