@@ -41,6 +41,10 @@ export class AuthenticationManager {
    */
   constructor(options: AuthenticationOptions) {
     this.options = options;
+
+    if (!this.options.issuerUrl) {
+      this.options.issuerUrl = 'https://crispthinking.auth0.com/';
+    }
   }
 
   /**
@@ -112,10 +116,17 @@ export class AuthenticationManager {
     }
 
     if (this.token === undefined) {
-      this.token = await clientCredentialsGrant(this.discovery, {
-        audience: 'crisp-athena-dev',
-        scope: this.options.scope,
-      });
+      if (this.options.scope) {
+        this.token = await clientCredentialsGrant(this.discovery, {
+          audience: 'crisp-athena-dev',
+          scope: this.options.scope,
+        });
+      } else {
+        this.token = await clientCredentialsGrant(this.discovery, {
+          audience: 'crisp-athena-dev',
+        });
+      }
+
       this.decoded = jwtDecode(this.token.access_token);
 
       // Calculate expiry date of jwt
