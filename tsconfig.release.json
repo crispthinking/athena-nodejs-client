@@ -5,8 +5,10 @@
     "removeComments": true,
     "rootDir": "src",
     "module": "es2022",
+    "moduleResolution": "node",
     "target": "es2022",
     "declaration": true,
+    "verbatimModuleSyntax": false,
     "lib": ["ES2022"]
   },
   "include": ["src/**/*"],

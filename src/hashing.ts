@@ -5,7 +5,7 @@ import {
   HashType,
   ImageFormat,
   RequestEncoding,
-} from './generated/athena/models';
+} from './generated/athena/models.js';
 import brotli from 'brotli';
 import { buffer } from 'stream/consumers';
 
@@ -20,10 +20,10 @@ import { buffer } from 'stream/consumers';
  */
 export async function computeHashesFromStream(
   data: Readable | Buffer<ArrayBufferLike>,
-  encoding: RequestEncoding = RequestEncoding.UNCOMPRESSED,
-  imageFormat: ImageFormat = ImageFormat.UNSPECIFIED,
+  encoding: RequestEncoding = RequestEncoding.REQUEST_ENCODING_UNCOMPRESSED,
+  imageFormat: ImageFormat = ImageFormat.IMAGE_FORMAT_UNSPECIFIED,
   resize: boolean = false,
-  hashes: HashType[] = [HashType.MD5, HashType.SHA1],
+  hashes: HashType[] = [HashType.HASH_TYPE_MD5, HashType.HASH_TYPE_SHA1],
 ): Promise<{
   md5?: string | undefined;
   sha1?: string | undefined;
@@ -41,13 +41,13 @@ export async function computeHashesFromStream(
     stream = Readable.from(data);
   }
 
-  if (hashes.includes(HashType.MD5)) {
+  if (hashes.includes(HashType.HASH_TYPE_MD5)) {
     {
       stream.pipe(md5);
     }
   }
 
-  if (hashes.includes(HashType.SHA1)) {
+  if (hashes.includes(HashType.HASH_TYPE_SHA1)) {
     {
       stream.pipe(sha1);
     }
@@ -57,7 +57,7 @@ export async function computeHashesFromStream(
     const resizer = sharp().resize(448, 448).raw({ depth: 'char' });
     stream.pipe(resizer);
     data = await resizer.toBuffer();
-    imageFormat = ImageFormat.RAW_UINT8;
+    imageFormat = ImageFormat.IMAGE_FORMAT_RAW_UINT8;
   } else {
     data = await buffer(stream);
     // use sharp to validate the image dimensions
@@ -67,13 +67,13 @@ export async function computeHashesFromStream(
     }
   }
 
-  if (encoding === RequestEncoding.BROTLI) {
+  if (encoding === RequestEncoding.REQUEST_ENCODING_BROTLI) {
     data = Buffer.from(brotli.compress(data));
   }
 
   return {
-    md5: hashes.includes(HashType.MD5) ? md5.digest('hex') : undefined,
-    sha1: hashes.includes(HashType.SHA1) ? sha1.digest('hex') : undefined,
+    md5: hashes.includes(HashType.HASH_TYPE_MD5) ? md5.digest('hex') : undefined,
+    sha1: hashes.includes(HashType.HASH_TYPE_SHA1) ? sha1.digest('hex') : undefined,
     data,
     format: imageFormat,
   };

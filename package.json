@@ -1,7 +1,7 @@
 {
   "name": "@crispthinking/athena-classifier-sdk",
   "version": "0.0.0",
-  "main": "./dist/src/index.js",
+  "main": "./dist/index.js",
   "description": "A Node.js SDK for the Athena classifier that uses gRPC transport.",
   "type": "module",
   "engines": {
@@ -14,13 +14,13 @@
   ],
   "exports": {
     ".": {
-      "import": "./dist/index.js",
-      "require": "./dist/index.js"
+      "require": "./dist/index.js",
+      "import": "./dist/index.js"
     }
   },
   "devDependencies": {
+    "@bufbuild/protoc-gen-es": "^2.8.0",
     "@eslint/js": "~9.35",
-    "@protobuf-ts/plugin": "^2.11.1",
     "@types/brotli": "^1.3.4",
     "@types/eslint__js": "~9.14",
     "@types/node": "~20",
@@ -50,7 +50,7 @@
     "build": "tsc -p tsconfig.json",
     "build:watch": "tsc -w -p tsconfig.json",
     "build:release": "npm run clean && tsc -p tsconfig.release.json",
-    "codegen": "mkdir -p src/generated && npx protoc --plugin=protoc-gen-ts=./node_modules/.bin/protoc-gen-ts --ts_out=client_grpc1:./src/generated --proto_path=./athena-protobufs ./athena-protobufs/athena/**.proto",
+    "codegen": "mkdir -p src/generated && npx protoc --plugin=protoc-gen-ts_proto=./node_modules/.bin/protoc-gen-ts_proto --ts_proto_out=src/generated --ts_proto_opt=esModuleInterop=true,importSuffix=.js,useExactTypes=false,outputServices=grpc-js --proto_path=./athena-protobufs ./athena-protobufs/athena/**.proto",
     "lint": "eslint .",
     "lint:all": "npm run lint && npm run prettier:check && npx tsc --noEmit",
     "precommit:setup": "echo 'To install pre-commit hooks, run: uv tool install pre-commit && uvx pre-commit install'",
@@ -70,7 +70,6 @@
     "@bufbuild/protobuf": "^2.7.0",
     "@grpc/grpc-js": "^1.13.4",
     "@grpc/proto-loader": "^0.8.0",
-    "@protobuf-ts/grpc-transport": "^2.11.1",
     "brotli": "^1.3.3",
     "jwt-decode": "^4.0.0",
     "openid-client": "^6.7.1",
