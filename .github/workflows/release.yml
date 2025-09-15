@@ -29,9 +29,8 @@ jobs:
             echo "Not building from a tag, using default version"
           fi
 
-      - run: npm run codegen
-
       - run: npm ci
+      - run: npm run codegen
 
       - run: npm run build:release
       - uses: JS-DevTools/npm-publish@v3
