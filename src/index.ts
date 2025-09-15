@@ -12,16 +12,14 @@ import {
   ClassificationOutput,
 } from './generated/athena/models.js';
 import * as grpc from '@grpc/grpc-js';
-import {
-  ClassifierServiceClient,
-} from './generated/athena/athena.js';
+import { ClassifierServiceClient } from './generated/athena/athena.js';
 import { EventEmitter } from 'events';
-import { Empty } from './generated/google/protobuf/empty';
+import { Empty } from './generated/google/protobuf/empty.js';
 import {
   type AuthenticationOptions,
   AuthenticationManager,
-} from './authenticationManager';
-import { computeHashesFromStream } from './hashing';
+} from './authenticationManager.js';
+import { computeHashesFromStream } from './hashing.js';
 import type TypedEventEmitter from 'typed-emitter';
 
 /**

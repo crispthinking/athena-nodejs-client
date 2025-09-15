@@ -72,8 +72,12 @@ export async function computeHashesFromStream(
   }
 
   return {
-    md5: hashes.includes(HashType.HASH_TYPE_MD5) ? md5.digest('hex') : undefined,
-    sha1: hashes.includes(HashType.HASH_TYPE_SHA1) ? sha1.digest('hex') : undefined,
+    md5: hashes.includes(HashType.HASH_TYPE_MD5)
+      ? md5.digest('hex')
+      : undefined,
+    sha1: hashes.includes(HashType.HASH_TYPE_SHA1)
+      ? sha1.digest('hex')
+      : undefined,
     data,
     format: imageFormat,
   };
