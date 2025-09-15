@@ -18,13 +18,13 @@ Usage Example
 
 .. code-block:: javascript
 
-   import { ClassifierSdk } from 'athena-nodejs-sdk';
+   import { ClassifierSdk } from '@crispthinking/athena-classifier-sdk';
 
    const sdk = new ClassifierSdk({
      deploymentId: 'your-deployment-id',
      affiliate: 'your-affiliate',
      authentication: {
-       issuerUrl: 'https://issuer.example.com',
+       issuer: 'https://issuer.example.com',
        clientId: 'your-client-id',
        clientSecret: 'your-client-secret',
        scope: 'manage:classify'
@@ -35,8 +35,8 @@ Usage Example
    const deployments = await sdk.listDeployments();
    // Send image for classification
    await sdk.sendClassifyRequest({
-     imageStream: fs.createReadStream('image.jpg'),
-     format: ImageFormats.JPEG,
+     data: fs.createReadStream('image.jpg'),
+     format: ImageFormat.IMAGE_FORMAT_JPEG,
    });
 
    sdk.on('data', (response) => {

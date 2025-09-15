@@ -12,11 +12,11 @@ Manages OAuth authentication and token refresh for the Athena gRPC client.  Hand
 
 .. code-block:: typescript
 
-   import { AuthenticationManager } from './authenticationManager';
+   import { AuthenticationManager } from '@crispthinking/athena-classifier-sdk';
    const auth = new AuthenticationManager({
        clientId: 'your-client-id',
        clientSecret: 'your-client-secret',
-       issuerUrl: 'https://issuer.example.com',
+       issuer: 'https://issuer.example.com',
        scope: 'manage:classify',
    });
 
@@ -24,7 +24,7 @@ Manages OAuth authentication and token refresh for the Athena gRPC client.  Hand
 
 * `clientId`: OAuth client ID
 * `clientSecret`: OAuth client secret
-* `issuerUrl`: URL of the OAuth issuer
+* `issuer`: URL of the OAuth issuer
 * `autoRefresh`: Whether to automatically refresh the access token
 * `scope`: OAuth scope to request
 

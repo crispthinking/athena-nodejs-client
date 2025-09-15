@@ -8,7 +8,7 @@ const sdk = new ClassifierSdk({
   authentication: {
     clientId: process.env.VITE_ATHENA_CLIENT_ID,
     clientSecret: process.env.VITE_ATHENA_CLIENT_SECRET,
-    issuerUrl: process.env.VITE_OAUTH_ISSUER,
+    issuer: process.env.VITE_OAUTH_ISSUER,
     scope: "manage:classify"
   },
   grpcAddress: 'csam-classification-messages.crispdev.com:443',
@@ -44,10 +44,10 @@ while(true)
 {
   const inputs = Array.from({ length: 3 }, () => ({
     data: createReadStream('448x448.jpg'),
-    format: ImageFormat.JPEG,
+    format: ImageFormat.IMAGE_FORMAT_JPEG,
     correlationId: randomUUID(),
-    encoding: RequestEncoding.UNCOMPRESSED,
-    includeHashes: [HashType.MD5, HashType.SHA1]
+    encoding: RequestEncoding.REQUEST_ENCODING_UNCOMPRESSED,
+    includeHashes: [HashType.HASH_TYPE_MD5, HashType.HASH_TYPE_SHA1]
   } as ClassifyImageInput));
 
   await sdk.sendClassifyRequest(inputs);

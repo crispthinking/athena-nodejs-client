@@ -28,11 +28,11 @@ import type TypedEventEmitter from 'typed-emitter';
  * Options for the classifyImage method.
  * @property affiliate Optional affiliate identifier for the request.
  * @property correlationId Optional correlation ID for tracking the request.
- * @property imageStream The image data as a readable stream.
+ * @property data The image data as a readable stream or buffer.
  * @property encoding Optional encoding type for the image data.
  * @property format Optional image format.
  * @property resize Optional flag to resize the image.
- * @property hashes Array of hash types to compute.
+ * @property includeHashes Array of hash types to compute.
  */
 export type ClassifyImageInput = {
   affiliate?: string;
