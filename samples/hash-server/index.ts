@@ -180,6 +180,13 @@ app.use(express.json());
 // Classification endpoint
 app.post('/', upload.array('image'), async (req: Request, res: Response) => {
   try {
+    // Defensive: Multer should always provide an array here, but check to prevent type confusion.
+    if (!Array.isArray(req.files)) {
+      return res.status(400).json({
+        error: 'Invalid files payload',
+        message: 'The "image" field must be an array of files'
+      });
+    }
     const files = req.files as Express.Multer.File[];
 
     if (!files || files.length === 0) {
