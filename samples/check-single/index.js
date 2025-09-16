@@ -210,7 +210,7 @@ function getImageFormat(imagePath, formatOverride) {
  */
 function formatResults(result, verbose = false) {
   console.log('\n📊 Classification Results:');
-  console.log('=' .repeat(50));
+  console.log('='.repeat(50));
 
   if (result.globalError) {
     console.log('❌ Global Error:', result.globalError);
