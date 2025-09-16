@@ -133,7 +133,7 @@ const options = parseArgs();
 validateConfig();
 
 console.log('🚀 Athena Hash Server - HTTP Image Classification');
-console.log('=' .repeat(60));
+console.log('='.repeat(60));
 console.log(`📋 Configuration:`);
 console.log(`   Deployment: ${options.deploymentId}`);
 console.log(`   Affiliate: ${CONFIG.affiliate}`);
