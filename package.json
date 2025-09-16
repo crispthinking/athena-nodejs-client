@@ -63,7 +63,7 @@
     "test:functional:watch": "vitest functional --config __tests__/vitest.functional.config.ts",
     "test:help": "echo 'Available test commands:\n  npm run test:unit          - Run unit tests (fast, no external deps)\n  npm run test:functional     - Run functional tests (requires env vars)\n  npm run test:coverage       - Run unit tests with coverage\n  npm run test:watch          - Run unit tests in watch mode\n  npm run test:functional:watch - Run functional tests in watch mode\n\nFor functional tests, set these env vars:\n  VITE_ATHENA_CLIENT_ID, VITE_ATHENA_CLIENT_SECRET,\n  VITE_ATHENA_DEPLOYMENT_ID, VITE_ATHENA_AFFILIATE, VITE_OAUTH_ISSUER'"
   },
-  "author": "James Abbott <abbottdev@users.noreply.github.com>",
+  "author": "Kroll Opensource <opensource@kroll.com>",
   "license": "MIT",
   "dependencies": {
     "@bufbuild/protobuf": "^2.7.0",
