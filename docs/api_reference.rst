@@ -18,7 +18,7 @@ Usage Example
 
 .. code-block:: javascript
 
-   import { ClassifierSdk } from 'athena-nodejs-sdk';
+   import { ClassifierSdk } from '@crispthinking/athena-classifier-sdk';
 
    const sdk = new ClassifierSdk({
      deploymentId: 'your-deployment-id',
@@ -35,8 +35,8 @@ Usage Example
    const deployments = await sdk.listDeployments();
    // Send image for classification
    await sdk.sendClassifyRequest({
-     imageStream: fs.createReadStream('image.jpg'),
-     format: ImageFormats.JPEG,
+     data: fs.createReadStream('image.jpg'),
+     format: ImageFormat.IMAGE_FORMAT_JPEG,
    });
 
    sdk.on('data', (response) => {

@@ -44,10 +44,10 @@ while(true)
 {
   const inputs = Array.from({ length: 3 }, () => ({
     data: createReadStream('448x448.jpg'),
-    format: ImageFormat.JPEG,
+    format: ImageFormat.IMAGE_FORMAT_JPEG,
     correlationId: randomUUID(),
-    encoding: RequestEncoding.UNCOMPRESSED,
-    includeHashes: [HashType.MD5, HashType.SHA1]
+    encoding: RequestEncoding.REQUEST_ENCODING_UNCOMPRESSED,
+    includeHashes: [HashType.HASH_TYPE_MD5, HashType.HASH_TYPE_SHA1]
   } as ClassifyImageInput));
 
   await sdk.sendClassifyRequest(inputs);
