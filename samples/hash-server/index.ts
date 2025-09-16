@@ -257,7 +257,8 @@ app.use((error: any, req: Request, res: Response, next: NextFunction) => {
     if (multerError.code === 'LIMIT_FILE_COUNT') {
       return res.status(400).json({ error: 'Too many files', message: 'Maximum 10 files per request' });
     }
-  }  res.status(500).json({
+  }
+  res.status(500).json({
     error: 'Internal server error',
     message: error.message || 'Unknown error occurred'
   });
