@@ -23,7 +23,7 @@ export type AuthenticationOptions = {
   /** OAuth scope to request. */
   scope?: string;
   /** OAuth audience to request. */
-  audience?: 'crisp-athena-live';
+  audience?: 'crisp-athena-live' | 'crisp-athena-dev' | 'crisp-athena-qa';
 };
 
 /**
@@ -120,12 +120,12 @@ export class AuthenticationManager {
     if (this.token === undefined) {
       if (this.options.scope) {
         this.token = await clientCredentialsGrant(this.discovery, {
-          audience: 'crisp-athena-live',
+          audience: this.options.audience || 'crisp-athena-live',
           scope: this.options.scope,
         });
       } else {
         this.token = await clientCredentialsGrant(this.discovery, {
-          audience: 'crisp-athena-live',
+          audience: this.options.audience || 'crisp-athena-live',
         });
       }
 
