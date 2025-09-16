@@ -259,7 +259,7 @@ async function classifyImage(options) {
   const affiliate = options.affiliate || CONFIG.affiliate;
 
   console.log('🚀 Athena Single Image Classification');
-  console.log('=' .repeat(40));
+  console.log('='.repeat(40));
 
   if (options.verbose) {
     console.log('📋 Configuration:');
