@@ -59,11 +59,6 @@ npm install
 npm start my-deployment-id
 ```
 
-```bash
-cd hash-server
-npm install
-npm start
-```
 
 ## Quick Start
 
