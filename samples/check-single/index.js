@@ -4,11 +4,12 @@
  * Athena Check Single - CLI tool for single image classification
  *
  * A command-line interface for classifying individual images using the
- * Athena Classifier SDK. Supports various image formats and provides
- * detailed classification results with proper error handling.
+ * Athena Classifier SDK's classifySingle method. Supports various image
+ * formats and provides detailed classification results with proper error handling.
+ * Uses synchronous classification for immediate results.
  */
 
-import { ClassifierSdk, ImageFormat } from '@crispthinking/athena-classifier-sdk';
+import { ClassifierSdk, ImageFormat, RequestEncoding } from '@crispthinking/athena-classifier-sdk';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -252,7 +253,7 @@ function formatResults(result, verbose = false) {
 }
 
 /**
- * Main classification function
+ * Main classification function using the synchronous classifySingle method
  */
 async function classifyImage(options) {
   const deploymentId = ''; // Always empty for classifySingle
@@ -298,54 +299,21 @@ async function classifyImage(options) {
 
     // Open connection and classify
     console.log('🔗 Connecting to Athena service...');
-    await sdk.open();
-
-    if (options.verbose) {
-      console.log('📋 Listing available deployments...');
-      try {
-        const deployments = await sdk.listDeployments();
-        console.log(`   Found ${deployments.length} deployments`);
-        const targetExists = deployments.some(d => d.deploymentId === deploymentId);
-        if (targetExists) {
-          console.log(`   ✅ Target deployment '${deploymentId}' is available`);
-        } else {
-          console.log(`   ⚠️  Target deployment '${deploymentId}' not found`);
-        }
-      } catch (error) {
-        console.log(`   ⚠️  Could not list deployments: ${error.message}`);
-      }
-    }
+    // Note: classifySingle doesn't require opening a streaming connection
 
     console.log('🔍 Classifying image...');
 
-    // Send classification request
-    await sdk.sendClassifyRequest({
+        // Send classification request using classifySingle
+    const result = await sdk.classifySingle({
       data: fs.createReadStream(options.imagePath),
       format: imageFormat,
+      encoding: RequestEncoding.REQUEST_ENCODING_UNCOMPRESSED,
     });
 
-    // Wait for results
-    return new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        sdk.close();
-        reject(new Error('Classification timeout after 30 seconds'));
-      }, 30000);
-
-      sdk.on('data', (result) => {
-        clearTimeout(timeout);
-        sdk.close();
-        resolve(result);
-      });
-
-      sdk.on('error', (error) => {
-        clearTimeout(timeout);
-        sdk.close();
-        reject(error);
-      });
-    });
+    // Return the classification output directly
+    return { outputs: [result] };
 
   } catch (error) {
-    sdk.close();
     throw error;
   }
 }
