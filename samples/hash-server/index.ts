@@ -285,7 +285,6 @@ async function startServer() {
           console.error(`❌ Error for correlationId ${output.correlationId}:`, output.error);
         } else {
           console.log(`✅ Result for correlationId ${output.correlationId}:`, {
-
             classifications: output.classifications
           });
         }
