@@ -56,11 +56,11 @@ jobs:
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
-        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+        if: github.event_name == 'release' && github.event.action == 'published'
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v4
-        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+        if: github.event_name == 'release' && github.event.action == 'published'
         with:
           path: docs/build/html
 
