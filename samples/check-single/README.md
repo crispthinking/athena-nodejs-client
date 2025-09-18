@@ -25,7 +25,6 @@ npm install ../../
 
 ## Configuration
 
-## Configuration
 
 Create a `.env` file in the samples directory with your Athena credentials as described in [the samples overview](../README.md).
 
