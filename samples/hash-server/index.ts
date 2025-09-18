@@ -189,7 +189,7 @@ app.post('/', upload.array('image'), async (req: Request, res: Response) => {
     }
     const files = req.files as Express.Multer.File[];
 
-    if (!files || files.length === 0) {
+    if (!Array.isArray(files) || files.length === 0) {
       return res.status(400).json({
         error: 'No images provided',
         message: 'Please upload one or more images using the "image" field'
