@@ -1,0 +1,20 @@
+{
+  "name": "athena-check-single",
+  "version": "1.0.0",
+  "description": "Single image classification CLI tool using Athena SDK",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node index.js --help"
+  },
+  "dependencies": {
+    "@crispthinking/athena-classifier-sdk": "file:../../"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": ["athena", "classification", "cli", "image", "security"],
+  "author": "Crisp Thinking",
+  "license": "MIT"
+}

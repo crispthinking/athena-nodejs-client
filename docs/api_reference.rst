@@ -21,13 +21,11 @@ Usage Example
    import { ClassifierSdk } from '@crispthinking/athena-classifier-sdk';
 
    const sdk = new ClassifierSdk({
-     deploymentId: 'your-deployment-id',
-     affiliate: 'your-affiliate',
+     deploymentId: 'your-deployment-id', // Chosen by you
+     affiliate: 'your-affiliate', // Provided by Resolver
      authentication: {
-       issuerUrl: 'https://issuer.example.com',
        clientId: 'your-client-id',
        clientSecret: 'your-client-secret',
-       scope: 'manage:classify'
      }
    });
 

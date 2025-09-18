@@ -348,8 +348,12 @@ export class ClassifierSdk extends (EventEmitter as new () => TypedEventEmitter<
       hashes: hashes,
     };
 
+    const metadata = new grpc.Metadata();
+
+    await this.auth.appendAuthorizationToMetadata(metadata);
+
     return new Promise<ClassificationOutput>((resolve, reject) => {
-      this.client.classifySingle(input, (err, response) => {
+      this.client.classifySingle(input, metadata, (err, response) => {
         if (err) {
           reject(err);
         } else {
