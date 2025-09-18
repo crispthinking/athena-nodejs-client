@@ -4,7 +4,7 @@ This directory contains example applications demonstrating various use cases of 
 
 ## Configuration
 
-All samples use a shared configuration system. Create a `.env` file in this directory by copying from the `.env.example` and filling in the reqiured configuration.
+All samples use a shared configuration system. Create a `.env` file in this directory by copying from the `.env.example` and filling in the required configuration.
 
 ### Required
 - `ATHENA_CLIENT_ID` - Your OAuth client ID
