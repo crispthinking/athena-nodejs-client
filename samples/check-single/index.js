@@ -234,13 +234,7 @@ function formatResults(result, verbose = false) {
     if (output.classifications && output.classifications.length > 0) {
       console.log('   ✅ Classifications:');
       output.classifications.forEach((classification, classIndex) => {
-        console.log(`      ${classIndex + 1}. Score: ${classification.score?.toFixed(4) || 'N/A'}`);
-        if (classification.label) {
-          console.log(`         Label: ${classification.label}`);
-        }
-        if (verbose && classification.confidence) {
-          console.log(`         Confidence: ${classification.confidence}`);
-        }
+        console.log(`      ${classIndex + 1}. ${classification.label}: ${classification.weight}`);
       });
     } else {
       console.log('   ⚠️  No classifications found');
@@ -256,7 +250,6 @@ function formatResults(result, verbose = false) {
  * Main classification function using the synchronous classifySingle method
  */
 async function classifyImage(options) {
-  const deploymentId = ''; // Always empty for classifySingle
   const affiliate = options.affiliate || CONFIG.affiliate;
 
   console.log('🚀 Athena Single Image Classification');
@@ -265,7 +258,6 @@ async function classifyImage(options) {
   if (options.verbose) {
     console.log('📋 Configuration:');
     console.log(`   Image: ${options.imagePath}`);
-    console.log(`   Deployment: ${deploymentId}`);
     console.log(`   Affiliate: ${affiliate}`);
     console.log(`   gRPC Address: ${CONFIG.grpcAddress}`);
     console.log('');
@@ -274,7 +266,7 @@ async function classifyImage(options) {
   // Initialize SDK
   console.log('🔧 Initializing Athena SDK...');
   const sdk = new ClassifierSdk({
-    deploymentId,
+    deploymentId: '',
     affiliate,
     grpcAddress: CONFIG.grpcAddress,
     authentication: {
