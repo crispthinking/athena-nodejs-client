@@ -1,0 +1,19 @@
+{
+  "name": "athena-hello-world",
+  "version": "1.0.0",
+  "description": "Simple hello world example using Athena SDK classifySingle method",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@crispthinking/athena-classifier-sdk": "file:../../"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": ["athena", "classification", "hello-world", "example"],
+  "author": "Crisp Thinking",
+  "license": "MIT"
+}
