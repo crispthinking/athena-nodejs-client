@@ -9,6 +9,7 @@
 # Configuration file for the Sphinx documentation builder.
 """Sphinx configuration file for Athena NodeJS SDK documentation."""
 
+import json
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -20,7 +21,11 @@ sys.path.insert(0, str(Path("../athena").resolve()))
 project = "Athena Classifier NodeJS SDK"
 copyright = f"{datetime.now(timezone.utc).year}, Crisp"
 author = "Crisp Thinking Group Ltd."
-release = "1.0.0"
+
+with Path("../package.json").open() as package_json:
+    package_metadata = json.loads(package_json.read())
+    version = package_metadata.get("version", "x.x.x")
+    release = version
 
 js_language = "typescript"
 js_source_path = "../src/"
