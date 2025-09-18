@@ -4,45 +4,64 @@ on:
     branches: [main, master]
   pull_request:
     branches: [main, master]
+
 permissions:
   contents: read
   pages: write
   id-token: write
+
 concurrency:
   group: 'pages'
   cancel-in-progress: false
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+
       - name: Install uv
         uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
-      - name: Set up Python
-        run: uv python install
+
       - name: Install dependencies
         run: uv sync --locked --all-extras
+
       - name: Use volta
         uses: volta-cli/action@v4
-      - name: Install NPM
+
+      - name: Set version from tag
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            TAG_VERSION=${GITHUB_REF#refs/tags/}
+            # Remove 'v' prefix if present
+            VERSION=${TAG_VERSION#v}
+            echo "Setting version to: $VERSION"
+            npm --no-git-tag-version version "$VERSION"
+          else
+            echo "Not building from a tag, using default version"
+          fi
+
+      - name: Install packages
         run: npm ci --no-audit
+
       - name: Build documentation
         run: |
-          npm install typedoc
           cd docs
-          uv run make clean
-          uv run make html
+          uv run make clean html
+
       - name: Setup Pages
         uses: actions/configure-pages@v5
         if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v4
         if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
         with:
           path: docs/build/html
+
       - name: Upload build artifacts for debugging
         uses: actions/upload-artifact@v4
         if: failure()
@@ -57,7 +76,7 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     needs: build
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    if: github.event_name == 'release' && github.event.action == 'published'
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
