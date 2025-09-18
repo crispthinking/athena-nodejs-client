@@ -49,6 +49,9 @@ jobs:
       - name: Install packages
         run: npm ci --no-audit
 
+      - name: Generate protobuf code
+        run: npm run codegen
+
       - name: Build documentation
         run: |
           cd docs
