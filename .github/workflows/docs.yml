@@ -23,6 +23,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
+      - name: Submodules
+        run: git submodule update --init --recursive
+
       - name: Install uv
         uses: astral-sh/setup-uv@v6
         with:
@@ -49,6 +52,9 @@ jobs:
       - name: Install packages
         run: npm ci --no-audit
 
+      - name: Generate protobuf code
+        run: npm run codegen
+
       - name: Build documentation
         run: |
           cd docs
@@ -56,11 +62,11 @@ jobs:
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
-        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+        if: github.event_name == 'release' && github.event.action == 'published'
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v4
-        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+        if: github.event_name == 'release' && github.event.action == 'published'
         with:
           path: docs/build/html
 
