@@ -66,7 +66,7 @@
   "author": "Kroll Opensource <opensource@kroll.com>",
   "license": "MIT",
   "dependencies": {
-    "@bufbuild/protobuf": "^2.7.0",
+    "@bufbuild/protobuf": "^2.9.0",
     "@grpc/grpc-js": "^1.14.0",
     "@grpc/proto-loader": "^0.8.0",
     "brotli": "^1.3.3",
