@@ -312,7 +312,7 @@ export class ClassifierSdk extends (EventEmitter as new () => TypedEventEmitter<
       affiliate: this.options.affiliate,
       correlationId: randomUUID().toString(),
       includeHashes: [HashType.HASH_TYPE_MD5, HashType.HASH_TYPE_SHA1],
-      encoding: request.encoding,
+      encoding: request.encoding ?? RequestEncoding.REQUEST_ENCODING_UNCOMPRESSED,
     };
 
     let inputFormat: ImageFormat = ImageFormat.IMAGE_FORMAT_UNSPECIFIED;
@@ -349,6 +349,8 @@ export class ClassifierSdk extends (EventEmitter as new () => TypedEventEmitter<
     };
 
     const metadata = new grpc.Metadata();
+    metadata.set('x-client-version', 'athena-nodejs-client/0.1.0');
+    metadata.set('x-client-language', 'nodejs');
 
     await this.auth.appendAuthorizationToMetadata(metadata);
 
