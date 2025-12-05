@@ -104,42 +104,32 @@ export class ClassifierSdk extends (EventEmitter as new () => TypedEventEmitter<
   /**
    * Helper method to process an image input and compute hashes.
    * @param input The image input to process.
-   * @param encoding The encoding to use.
-   * @param includeHashes The hash types to compute.
    * @returns Processed image data with hashes.
    */
-  private async processImageInput(
-    input: ClassifyImageInput,
-    encoding?: RequestEncoding,
-    includeHashes: HashType[] = [HashType.HASH_TYPE_MD5, HashType.HASH_TYPE_SHA1],
-  ): Promise<{
-    md5: string;
-    sha1: string;
+  private async processImageInput(input: ClassifyImageInput): Promise<{
     data: Buffer<ArrayBufferLike>;
     format: ImageFormat;
     hashes: ImageHash[];
   }> {
-    // Check if format is present (raw image) - if so, don't resize
-    const shouldResize = !('format' in input);
-    const inputFormat: ImageFormat = shouldResize
-      ? ImageFormat.IMAGE_FORMAT_UNSPECIFIED
-      : (input as RawImageInput).format;
+    const shouldResize = !('resize' in input) || input.resize === true;
+    const inputFormat: ImageFormat =
+      'format' in input ? input.format : ImageFormat.IMAGE_FORMAT_UNSPECIFIED;
 
     const { md5, sha1, data, format } = await computeHashesFromStream(
       input.data,
-      encoding,
+      input.encoding ?? RequestEncoding.REQUEST_ENCODING_UNCOMPRESSED,
       inputFormat,
       shouldResize,
-      includeHashes,
+      input.includeHashes || [HashType.HASH_TYPE_MD5, HashType.HASH_TYPE_SHA1],
     );
 
     const hashes: ImageHash[] = [];
 
-    if (md5 && md5.trim() != '') {
+    if (md5 && md5.trim() !== '') {
       hashes.push({ value: md5, type: HashType.HASH_TYPE_MD5 });
     }
 
-    if (sha1 && sha1.trim() != '') {
+    if (sha1 && sha1.trim() !== '') {
       hashes.push({ value: sha1, type: HashType.HASH_TYPE_SHA1 });
     }
 
@@ -291,24 +281,19 @@ export class ClassifierSdk extends (EventEmitter as new () => TypedEventEmitter<
 
     const processedInputs: ClassificationInput[] = [];
 
-    for (const options of requests) {
+    for (const request of requests) {
       const {
         affiliate = this.options.affiliate,
         correlationId = randomUUID().toString(),
-        includeHashes = [HashType.HASH_TYPE_MD5, HashType.HASH_TYPE_SHA1],
-        encoding = RequestEncoding.REQUEST_ENCODING_UNCOMPRESSED,
-      } = options;
+      } = request;
 
-      const { data, format, hashes } = await this.processImageInput(
-        options,
-        encoding,
-        includeHashes,
-      );
+      const { data, format, hashes } = await this.processImageInput(request);
 
       processedInputs.push({
         affiliate,
         correlationId,
-        encoding,
+        encoding:
+          request.encoding ?? RequestEncoding.REQUEST_ENCODING_UNCOMPRESSED,
         data,
         format,
         hashes,
@@ -335,22 +320,18 @@ export class ClassifierSdk extends (EventEmitter as new () => TypedEventEmitter<
   public async classifySingle(
     request: ClassifyImageInput,
   ): Promise<ClassificationOutput> {
-    const correlationId = randomUUID().toString();
-    const includeHashes = [HashType.HASH_TYPE_MD5, HashType.HASH_TYPE_SHA1];
+    const correlationId = request.correlationId ?? randomUUID().toString();
 
-    const { data, format, hashes } = await this.processImageInput(
-      request,
-      request.encoding,
-      includeHashes,
-    );
+    const { data, format, hashes } = await this.processImageInput(request);
 
     const input: ClassificationInput = {
-      affiliate: this.options.affiliate,
-      correlationId: correlationId,
-      data: data,
-      format: format,
-      encoding: request.encoding,
-      hashes: hashes,
+      affiliate: request.affiliate ?? this.options.affiliate,
+      correlationId,
+      data,
+      format,
+      encoding:
+        request.encoding ?? RequestEncoding.REQUEST_ENCODING_UNCOMPRESSED,
+      hashes,
     };
 
     const metadata = new grpc.Metadata();
