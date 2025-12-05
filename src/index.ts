@@ -134,18 +134,23 @@ export class ClassifierSdk extends (EventEmitter as new () => TypedEventEmitter<
    */
   private async createMetadata(): Promise<grpc.Metadata> {
     const metadata = new grpc.Metadata();
-    
+
     // Lazy load version on first use
     if (ClassifierSdk.clientVersion === null) {
       try {
-        const packageJson = await import('../package.json', { with: { type: 'json' } });
+        const packageJson = await import('../package.json', {
+          with: { type: 'json' },
+        });
         ClassifierSdk.clientVersion = packageJson.default?.version || 'unknown';
       } catch {
         ClassifierSdk.clientVersion = 'unknown';
       }
     }
-    
-    metadata.set('x-client-version', `athena-nodejs-client/${ClassifierSdk.clientVersion}`);
+
+    metadata.set(
+      'x-client-version',
+      `athena-nodejs-client/${ClassifierSdk.clientVersion}`,
+    );
     metadata.set('x-client-language', 'nodejs');
     await this.auth.appendAuthorizationToMetadata(metadata);
     return metadata;
@@ -325,7 +330,8 @@ export class ClassifierSdk extends (EventEmitter as new () => TypedEventEmitter<
       affiliate: this.options.affiliate,
       correlationId: randomUUID().toString(),
       includeHashes: [HashType.HASH_TYPE_MD5, HashType.HASH_TYPE_SHA1],
-      encoding: request.encoding ?? RequestEncoding.REQUEST_ENCODING_UNCOMPRESSED,
+      encoding:
+        request.encoding ?? RequestEncoding.REQUEST_ENCODING_UNCOMPRESSED,
     };
 
     let inputFormat: ImageFormat = ImageFormat.IMAGE_FORMAT_UNSPECIFIED;
