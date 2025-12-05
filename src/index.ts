@@ -103,25 +103,31 @@ export class ClassifierSdk extends (EventEmitter as new () => TypedEventEmitter<
   private static clientVersion: string | null = null;
 
   /**
-   * Helper method to process an image input and compute hashes.
+   * Helper method to process an image input and return a complete ClassificationInput.
+   * Extracts default values, computes hashes, and prepares data for gRPC calls.
    * @param input The image input to process.
-   * @returns Processed image data with hashes.
+   * @returns Complete ClassificationInput ready to send to the service.
    */
-  private async processImageInput(input: ClassifyImageInput): Promise<{
-    data: Buffer<ArrayBufferLike>;
-    format: ImageFormat;
-    hashes: ImageHash[];
-  }> {
+  private async processImageInput(
+    input: ClassifyImageInput,
+  ): Promise<ClassificationInput> {
+    const {
+      affiliate = this.options.affiliate,
+      correlationId = randomUUID().toString(),
+      encoding = RequestEncoding.REQUEST_ENCODING_UNCOMPRESSED,
+      includeHashes = [HashType.HASH_TYPE_MD5, HashType.HASH_TYPE_SHA1],
+    } = input;
+
     const shouldResize = input.resize !== false;
     const inputFormat: ImageFormat =
       'format' in input ? input.format : ImageFormat.IMAGE_FORMAT_UNSPECIFIED;
 
     const { md5, sha1, data, format } = await computeHashesFromStream(
       input.data,
-      input.encoding ?? RequestEncoding.REQUEST_ENCODING_UNCOMPRESSED,
+      encoding,
       inputFormat,
       shouldResize,
-      input.includeHashes || [HashType.HASH_TYPE_MD5, HashType.HASH_TYPE_SHA1],
+      includeHashes,
     );
 
     const hashes: ImageHash[] = [];
@@ -134,7 +140,14 @@ export class ClassifierSdk extends (EventEmitter as new () => TypedEventEmitter<
       hashes.push({ value: sha1, type: HashType.HASH_TYPE_SHA1 });
     }
 
-    return { data, format, hashes };
+    return {
+      affiliate,
+      correlationId,
+      data,
+      format,
+      encoding,
+      hashes,
+    };
   }
 
   /**
@@ -300,22 +313,8 @@ export class ClassifierSdk extends (EventEmitter as new () => TypedEventEmitter<
     const processedInputs: ClassificationInput[] = [];
 
     for (const request of requests) {
-      const {
-        affiliate = this.options.affiliate,
-        correlationId = randomUUID().toString(),
-        encoding = RequestEncoding.REQUEST_ENCODING_UNCOMPRESSED,
-      } = request;
-
-      const { data, format, hashes } = await this.processImageInput(request);
-
-      processedInputs.push({
-        affiliate,
-        correlationId,
-        encoding,
-        data,
-        format,
-        hashes,
-      });
+      const input = await this.processImageInput(request);
+      processedInputs.push(input);
     }
 
     const classifyRequest: ClassifyRequest = {
@@ -338,23 +337,7 @@ export class ClassifierSdk extends (EventEmitter as new () => TypedEventEmitter<
   public async classifySingle(
     request: ClassifyImageInput,
   ): Promise<ClassificationOutput> {
-    const {
-      affiliate = this.options.affiliate,
-      correlationId = randomUUID().toString(),
-      encoding = RequestEncoding.REQUEST_ENCODING_UNCOMPRESSED,
-    } = request;
-
-    const { data, format, hashes } = await this.processImageInput(request);
-
-    const input: ClassificationInput = {
-      affiliate,
-      correlationId,
-      data,
-      format,
-      encoding,
-      hashes,
-    };
-
+    const input = await this.processImageInput(request);
     const metadata = await this.createMetadata();
 
     return new Promise<ClassificationOutput>((resolve, reject) => {
