@@ -41,10 +41,11 @@ export type ClassifyImageInput = {
 } & (ResizeImageInput | RawImageInput);
 
 export type ResizeImageInput = {
-  resize: true;
+  resize?: true;
 };
 
 export type RawImageInput = {
+  resize: false;
   format: ClassifyRequest['inputs'][number]['format'];
 };
 
@@ -254,17 +255,17 @@ export class ClassifierSdk extends (EventEmitter as new () => TypedEventEmitter<
         encoding = RequestEncoding.REQUEST_ENCODING_UNCOMPRESSED,
       } = options;
 
-      let inputFormat: ImageFormat = ImageFormat.IMAGE_FORMAT_UNSPECIFIED;
-
-      if ('resize' in options === false) {
-        inputFormat = options.format;
-      }
+      // Default to resizing unless explicitly set to false
+      const shouldResize = options.resize !== false;
+      const inputFormat: ImageFormat = shouldResize
+        ? ImageFormat.IMAGE_FORMAT_UNSPECIFIED
+        : (options as RawImageInput).format;
 
       const { md5, sha1, data, format } = await computeHashesFromStream(
         inputData,
         encoding,
         inputFormat,
-        'resize' in options,
+        shouldResize,
         includeHashes,
       );
 
@@ -315,17 +316,17 @@ export class ClassifierSdk extends (EventEmitter as new () => TypedEventEmitter<
       encoding: request.encoding,
     };
 
-    let inputFormat: ImageFormat = ImageFormat.IMAGE_FORMAT_UNSPECIFIED;
-
-    if ('resize' in request === false) {
-      inputFormat = request.format;
-    }
+    // Default to resizing unless explicitly set to false
+    const shouldResize = request.resize !== false;
+    const inputFormat: ImageFormat = shouldResize
+      ? ImageFormat.IMAGE_FORMAT_UNSPECIFIED
+      : (request as RawImageInput).format;
 
     const { md5, sha1, data, format } = await computeHashesFromStream(
       request.data,
       options.encoding,
       inputFormat,
-      'resize' in request,
+      shouldResize,
       options.includeHashes,
     );
 
