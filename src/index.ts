@@ -303,6 +303,7 @@ export class ClassifierSdk extends (EventEmitter as new () => TypedEventEmitter<
       const {
         affiliate = this.options.affiliate,
         correlationId = randomUUID().toString(),
+        encoding = RequestEncoding.REQUEST_ENCODING_UNCOMPRESSED,
       } = request;
 
       const { data, format, hashes } = await this.processImageInput(request);
@@ -310,8 +311,7 @@ export class ClassifierSdk extends (EventEmitter as new () => TypedEventEmitter<
       processedInputs.push({
         affiliate,
         correlationId,
-        encoding:
-          request.encoding ?? RequestEncoding.REQUEST_ENCODING_UNCOMPRESSED,
+        encoding,
         data,
         format,
         hashes,
@@ -338,17 +338,20 @@ export class ClassifierSdk extends (EventEmitter as new () => TypedEventEmitter<
   public async classifySingle(
     request: ClassifyImageInput,
   ): Promise<ClassificationOutput> {
-    const correlationId = request.correlationId ?? randomUUID().toString();
+    const {
+      affiliate = this.options.affiliate,
+      correlationId = randomUUID().toString(),
+      encoding = RequestEncoding.REQUEST_ENCODING_UNCOMPRESSED,
+    } = request;
 
     const { data, format, hashes } = await this.processImageInput(request);
 
     const input: ClassificationInput = {
-      affiliate: request.affiliate ?? this.options.affiliate,
+      affiliate,
       correlationId,
       data,
       format,
-      encoding:
-        request.encoding ?? RequestEncoding.REQUEST_ENCODING_UNCOMPRESSED,
+      encoding,
       hashes,
     };
 
