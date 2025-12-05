@@ -63,5 +63,5 @@ Required:
 - `ATHENA_AFFILIATE` - Your affiliate identifier
 
 Optional:
-- `ATHENA_GRPC_ADDRESS` - gRPC endpoint (default: trust.messages.crispthinking.com:443)
+- `ATHENA_GRPC_ADDRESS` - gRPC endpoint (default: trust-messages-global.crispthinking.com:443)
 - `ATHENA_AUDIENCE` - OAuth audience (default: crisp-athena-live)
