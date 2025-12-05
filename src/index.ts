@@ -42,10 +42,11 @@ export type ClassifyImageInput = {
 } & (ResizeImageInput | RawImageInput);
 
 export type ResizeImageInput = {
-  resize: true;
+  resize?: true;
 };
 
 export type RawImageInput = {
+  resize: false;
   format: ClassifyRequest['inputs'][number]['format'];
 };
 
@@ -100,6 +101,54 @@ export class ClassifierSdk extends (EventEmitter as new () => TypedEventEmitter<
   private auth: AuthenticationManager;
   private keepAlive?: NodeJS.Timeout;
   private static clientVersion: string | null = null;
+
+  /**
+   * Helper method to process an image input and return a complete ClassificationInput.
+   * Extracts default values, computes hashes, and prepares data for gRPC calls.
+   * @param input The image input to process.
+   * @returns Complete ClassificationInput ready to send to the service.
+   */
+  private async processImageInput(
+    input: ClassifyImageInput,
+  ): Promise<ClassificationInput> {
+    const {
+      affiliate = this.options.affiliate,
+      correlationId = randomUUID().toString(),
+      encoding = RequestEncoding.REQUEST_ENCODING_UNCOMPRESSED,
+      includeHashes = [HashType.HASH_TYPE_MD5, HashType.HASH_TYPE_SHA1],
+    } = input;
+
+    const shouldResize = input.resize !== false;
+    const inputFormat: ImageFormat =
+      'format' in input ? input.format : ImageFormat.IMAGE_FORMAT_UNSPECIFIED;
+
+    const { md5, sha1, data, format } = await computeHashesFromStream(
+      input.data,
+      encoding,
+      inputFormat,
+      shouldResize,
+      includeHashes,
+    );
+
+    const hashes: ImageHash[] = [];
+
+    if (md5 && md5.trim() !== '') {
+      hashes.push({ value: md5, type: HashType.HASH_TYPE_MD5 });
+    }
+
+    if (sha1 && sha1.trim() !== '') {
+      hashes.push({ value: sha1, type: HashType.HASH_TYPE_SHA1 });
+    }
+
+    return {
+      affiliate,
+      correlationId,
+      data,
+      format,
+      encoding,
+      hashes,
+    };
+  }
 
   /**
    * Constructs a new ClassifierSdk instance.
@@ -263,47 +312,9 @@ export class ClassifierSdk extends (EventEmitter as new () => TypedEventEmitter<
 
     const processedInputs: ClassificationInput[] = [];
 
-    for (const options of requests) {
-      const {
-        affiliate = this.options.affiliate,
-        correlationId = randomUUID().toString(),
-        data: inputData,
-        includeHashes = [HashType.HASH_TYPE_MD5, HashType.HASH_TYPE_SHA1],
-        encoding = RequestEncoding.REQUEST_ENCODING_UNCOMPRESSED,
-      } = options;
-
-      let inputFormat: ImageFormat = ImageFormat.IMAGE_FORMAT_UNSPECIFIED;
-
-      if ('resize' in options === false) {
-        inputFormat = options.format;
-      }
-
-      const { md5, sha1, data, format } = await computeHashesFromStream(
-        inputData,
-        encoding,
-        inputFormat,
-        'resize' in options,
-        includeHashes,
-      );
-
-      const hashes: ImageHash[] = [];
-
-      if (md5 && md5.trim() != '') {
-        hashes.push({ value: md5, type: HashType.HASH_TYPE_MD5 });
-      }
-
-      if (sha1 && sha1.trim() != '') {
-        hashes.push({ value: sha1, type: HashType.HASH_TYPE_SHA1 });
-      }
-
-      processedInputs.push({
-        affiliate,
-        correlationId,
-        encoding,
-        data,
-        format,
-        hashes,
-      });
+    for (const request of requests) {
+      const input = await this.processImageInput(request);
+      processedInputs.push(input);
     }
 
     const classifyRequest: ClassifyRequest = {
@@ -326,47 +337,7 @@ export class ClassifierSdk extends (EventEmitter as new () => TypedEventEmitter<
   public async classifySingle(
     request: ClassifyImageInput,
   ): Promise<ClassificationOutput> {
-    const options = {
-      affiliate: this.options.affiliate,
-      correlationId: randomUUID().toString(),
-      includeHashes: [HashType.HASH_TYPE_MD5, HashType.HASH_TYPE_SHA1],
-      encoding:
-        request.encoding ?? RequestEncoding.REQUEST_ENCODING_UNCOMPRESSED,
-    };
-
-    let inputFormat: ImageFormat = ImageFormat.IMAGE_FORMAT_UNSPECIFIED;
-
-    if ('resize' in request === false) {
-      inputFormat = request.format;
-    }
-
-    const { md5, sha1, data, format } = await computeHashesFromStream(
-      request.data,
-      options.encoding,
-      inputFormat,
-      'resize' in request,
-      options.includeHashes,
-    );
-
-    const hashes: ImageHash[] = [];
-
-    if (md5 && md5.trim() != '') {
-      hashes.push({ value: md5, type: HashType.HASH_TYPE_MD5 });
-    }
-
-    if (sha1 && sha1.trim() != '') {
-      hashes.push({ value: sha1, type: HashType.HASH_TYPE_SHA1 });
-    }
-
-    const input: ClassificationInput = {
-      affiliate: this.options.affiliate,
-      correlationId: options.correlationId,
-      data: data,
-      format: format,
-      encoding: options.encoding,
-      hashes: hashes,
-    };
-
+    const input = await this.processImageInput(request);
     const metadata = await this.createMetadata();
 
     return new Promise<ClassificationOutput>((resolve, reject) => {
