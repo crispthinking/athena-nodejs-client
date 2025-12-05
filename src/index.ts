@@ -1,5 +1,6 @@
 import { randomUUID } from 'crypto';
 import { Readable } from 'stream';
+import { createRequire } from 'module';
 import {
   ClassifyRequest,
   ClassificationInput,
@@ -98,7 +99,7 @@ export class ClassifierSdk extends (EventEmitter as new () => TypedEventEmitter<
   private options: ClassifierSdkOptions;
   private auth: AuthenticationManager;
   private keepAlive?: NodeJS.Timeout;
-  private metadata?: grpc.Metadata;
+  private static clientVersion: string | null = null;
 
   /**
    * Constructs a new ClassifierSdk instance.
@@ -129,13 +130,38 @@ export class ClassifierSdk extends (EventEmitter as new () => TypedEventEmitter<
   }
 
   /**
+   * Creates fresh metadata with standard headers and authentication.
+   * @returns Promise resolving to configured metadata.
+   */
+  private async createMetadata(): Promise<grpc.Metadata> {
+    const metadata = new grpc.Metadata();
+
+    // Lazy load version on first use
+    if (ClassifierSdk.clientVersion === null) {
+      try {
+        const require = createRequire(import.meta.url);
+        const packageJson = require('../package.json');
+        ClassifierSdk.clientVersion = packageJson.version ?? 'unknown';
+      } catch {
+        ClassifierSdk.clientVersion = 'unknown';
+      }
+    }
+
+    metadata.set(
+      'x-client-version',
+      `athena-nodejs-client/${ClassifierSdk.clientVersion}`,
+    );
+    metadata.set('x-client-language', 'nodejs');
+    await this.auth.appendAuthorizationToMetadata(metadata);
+    return metadata;
+  }
+
+  /**
    * Lists available deployments from the Athena service.
    * @returns Promise resolving to an array of deployments.
    */
   public async listDeployments(): Promise<Deployment[]> {
-    const metadata = new grpc.Metadata();
-
-    await this.auth.appendAuthorizationToMetadata(metadata);
+    const metadata = await this.createMetadata();
 
     return new Promise<Deployment[]>((resolve, reject) => {
       this.client.listDeployments(Empty, metadata, (err, response) => {
@@ -154,22 +180,14 @@ export class ClassifierSdk extends (EventEmitter as new () => TypedEventEmitter<
    * @returns Promise that resolves when the stream is open.
    */
   public async open(): Promise<void> {
-    if (this.metadata === undefined) {
-      this.metadata = new grpc.Metadata();
+    const metadata = await this.createMetadata();
 
-      this.metadata.set('x-client-version', 'athena-nodejs-client/0.1.0');
-      this.metadata.set('x-client-language', 'nodejs');
-
-      await this.auth.appendAuthorizationToMetadata(this.metadata);
-    }
-
-    this.classifierGrpcCall = this.client.classify(this.metadata);
+    this.classifierGrpcCall = this.client.classify(metadata);
 
     // Setup interval to keep the grpc client alive.
     this.keepAlive = setInterval(async () => {
-      if (this.classifierGrpcCall && this.metadata) {
+      if (this.classifierGrpcCall) {
         try {
-          await this.auth.appendAuthorizationToMetadata(this.metadata);
           this.classifierGrpcCall.write({
             deploymentId: this.options.deploymentId,
             inputs: [],
@@ -312,7 +330,8 @@ export class ClassifierSdk extends (EventEmitter as new () => TypedEventEmitter<
       affiliate: this.options.affiliate,
       correlationId: randomUUID().toString(),
       includeHashes: [HashType.HASH_TYPE_MD5, HashType.HASH_TYPE_SHA1],
-      encoding: request.encoding,
+      encoding:
+        request.encoding ?? RequestEncoding.REQUEST_ENCODING_UNCOMPRESSED,
     };
 
     let inputFormat: ImageFormat = ImageFormat.IMAGE_FORMAT_UNSPECIFIED;
@@ -348,9 +367,7 @@ export class ClassifierSdk extends (EventEmitter as new () => TypedEventEmitter<
       hashes: hashes,
     };
 
-    const metadata = new grpc.Metadata();
-
-    await this.auth.appendAuthorizationToMetadata(metadata);
+    const metadata = await this.createMetadata();
 
     return new Promise<ClassificationOutput>((resolve, reject) => {
       this.client.classifySingle(input, metadata, (err, response) => {
