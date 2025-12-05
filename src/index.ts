@@ -112,7 +112,7 @@ export class ClassifierSdk extends (EventEmitter as new () => TypedEventEmitter<
     format: ImageFormat;
     hashes: ImageHash[];
   }> {
-    const shouldResize = !('resize' in input) || input.resize === true;
+    const shouldResize = input.resize !== false;
     const inputFormat: ImageFormat =
       'format' in input ? input.format : ImageFormat.IMAGE_FORMAT_UNSPECIFIED;
 
