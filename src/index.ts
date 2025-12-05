@@ -1,5 +1,6 @@
 import { randomUUID } from 'crypto';
 import { Readable } from 'stream';
+import packageJson from '../package.json' with { type: 'json' };
 import {
   ClassifyRequest,
   ClassificationInput,
@@ -98,7 +99,6 @@ export class ClassifierSdk extends (EventEmitter as new () => TypedEventEmitter<
   private options: ClassifierSdkOptions;
   private auth: AuthenticationManager;
   private keepAlive?: NodeJS.Timeout;
-  private static clientVersion: string | null = null;
 
   /**
    * Constructs a new ClassifierSdk instance.
@@ -134,23 +134,8 @@ export class ClassifierSdk extends (EventEmitter as new () => TypedEventEmitter<
    */
   private async createMetadata(): Promise<grpc.Metadata> {
     const metadata = new grpc.Metadata();
-
-    // Lazy load version on first use
-    if (ClassifierSdk.clientVersion === null) {
-      try {
-        const packageJson = await import('../package.json', {
-          with: { type: 'json' },
-        });
-        ClassifierSdk.clientVersion = packageJson.default?.version || 'unknown';
-      } catch {
-        ClassifierSdk.clientVersion = 'unknown';
-      }
-    }
-
-    metadata.set(
-      'x-client-version',
-      `athena-nodejs-client/${ClassifierSdk.clientVersion}`,
-    );
+    const version = packageJson.version ?? 'unknown';
+    metadata.set('x-client-version', `athena-nodejs-client/${version}`);
     metadata.set('x-client-language', 'nodejs');
     await this.auth.appendAuthorizationToMetadata(metadata);
     return metadata;
