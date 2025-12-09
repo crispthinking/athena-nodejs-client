@@ -37,6 +37,18 @@ jobs:
       - name: Run unit tests
         run: npm run test:unit
 
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-dist
+          path: |
+            dist/
+            package.json
+            package-lock.json
+            README.md
+            LICENSE
+          retention-days: 30
+
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
