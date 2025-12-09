@@ -34,8 +34,8 @@ jobs:
             echo "Not building from a tag, using default version"
           fi
 
-      - run: npm run codegen
       - run: npm ci
+      - run: npm run codegen
 
       - name: Publish to npm
         run: npm publish --provenance --access public
