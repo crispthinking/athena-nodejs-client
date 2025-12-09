@@ -34,10 +34,11 @@ jobs:
             echo "Not building from a tag, using default version"
           fi
 
-      - run: npm run codegen
-      - run: npm ci
-
-      - name: Publish to npm
-        run: npm publish --provenance --access public
+      - run: |
+          npm ci
+          npm run codegen
+          npm run build:release
+          npm publish --provenance --access public
+        name: Build and Publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
