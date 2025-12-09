@@ -16,26 +16,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v5
 
-      - name: Get latest CI run
-        id: get-run
-        run: |
-          # Get the latest successful CI run for the release commit
-          COMMIT_SHA="${{ github.event.release.target_commitish }}"
-          RUN_ID=$(gh api repos/${{ github.repository }}/actions/workflows/nodejs.yml/runs \
-            --jq ".workflow_runs[] | select(.head_sha == \"$COMMIT_SHA\" and .conclusion == \"success\") | .id" \
-            | head -n 1)
-          echo "run-id=$RUN_ID" >> $GITHUB_OUTPUT
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Download build artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: build-dist
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          repository: ${{ github.repository }}
-          run-id: ${{ steps.get-run.outputs.run-id }}
-
       - name: Setup Node.js
         uses: actions/setup-node@v5
         with:
@@ -53,6 +33,9 @@ jobs:
           else
             echo "Not building from a tag, using default version"
           fi
+
+      - run: npm run codegen
+      - run: npm ci
 
       - name: Publish to npm
         run: npm publish --provenance --access public
