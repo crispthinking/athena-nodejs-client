@@ -13,7 +13,7 @@ All samples use a shared configuration system. Create a `.env` file in this dire
 
 ### Optional
 - `ATHENA_ISSUER_URL` - OAuth issuer/authorization server URL (default: https://crispthinking.auth0.com/)
-- `ATHENA_GRPC_ADDRESS` - gRPC service endpoint (default: trust.messages.crispthinking.com:443)
+- `ATHENA_GRPC_ADDRESS` - gRPC service endpoint (default: trust-messages-global.crispthinking.com:443)
 - `ATHENA_AUDIENCE` - OAuth audience parameter (default: crisp-athena-live)
 
 ## Available Samples

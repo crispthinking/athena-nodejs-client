@@ -15,7 +15,7 @@ const CONFIG = {
   clientSecret: process.env.ATHENA_CLIENT_SECRET,
   affiliate: process.env.ATHENA_AFFILIATE,
   issuerUrl: process.env.ATHENA_ISSUER_URL || 'https://crispthinking.auth0.com/',
-  grpcAddress: process.env.ATHENA_GRPC_ADDRESS || 'trust.messages.crispthinking.com:443',
+  grpcAddress: process.env.ATHENA_GRPC_ADDRESS || 'trust-messages-global.crispthinking.com:443',
   audience: process.env.ATHENA_AUDIENCE || 'crisp-athena-live',
   port: parseInt(process.env.PORT || '3000')
 };
@@ -64,7 +64,7 @@ Environment Variables (Required):
 
 Environment Variables (Optional):
   ATHENA_ISSUER_URL       OAuth issuer URL (default: https://crispthinking.auth0.com/)
-  ATHENA_GRPC_ADDRESS     gRPC service address (default: trust.messages.crispthinking.com:443)
+  ATHENA_GRPC_ADDRESS     gRPC service address (default: trust-messages-global.crispthinking.com:443)
   ATHENA_AUDIENCE         OAuth audience (default: crisp-athena-live)
   PORT                   HTTP server port (default: 3000)
 

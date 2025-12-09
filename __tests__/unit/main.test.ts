@@ -87,13 +87,13 @@ describe('ClassifierSdk', () => {
     it('should have all expected image formats', () => {
       expect(ImageFormat.IMAGE_FORMAT_PNG).toBeDefined();
       expect(ImageFormat.IMAGE_FORMAT_JPEG).toBeDefined();
-      expect(ImageFormat.IMAGE_FORMAT_RAW_UINT8).toBeDefined();
+      expect(ImageFormat.IMAGE_FORMAT_RAW_UINT8_BGR).toBeDefined();
     });
 
     it('should have correct values for image formats', () => {
       expect(typeof ImageFormat.IMAGE_FORMAT_PNG).toBe('number');
       expect(typeof ImageFormat.IMAGE_FORMAT_JPEG).toBe('number');
-      expect(typeof ImageFormat.IMAGE_FORMAT_RAW_UINT8).toBe('number');
+      expect(typeof ImageFormat.IMAGE_FORMAT_RAW_UINT8_BGR).toBe('number');
     });
   });
 
