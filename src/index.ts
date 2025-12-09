@@ -1,5 +1,6 @@
 import { randomUUID } from 'crypto';
 import { Readable } from 'stream';
+import { createRequire } from 'module';
 import {
   ClassifyRequest,
   ClassificationInput,
@@ -41,10 +42,11 @@ export type ClassifyImageInput = {
 } & (ResizeImageInput | RawImageInput);
 
 export type ResizeImageInput = {
-  resize: true;
+  resize?: true;
 };
 
 export type RawImageInput = {
+  resize: false;
   format: ClassifyRequest['inputs'][number]['format'];
 };
 
@@ -78,7 +80,7 @@ export type ClassifierEvents = {
   open: () => void;
 };
 
-export const defaultGrpcAddress = 'trust.messages.crispthinking.com:443';
+export const defaultGrpcAddress = 'trust-messages-global.crispthinking.com:443';
 
 /**
  * SDK for interacting with the Athena classification service via gRPC.
@@ -98,7 +100,55 @@ export class ClassifierSdk extends (EventEmitter as new () => TypedEventEmitter<
   private options: ClassifierSdkOptions;
   private auth: AuthenticationManager;
   private keepAlive?: NodeJS.Timeout;
-  private metadata?: grpc.Metadata;
+  private static clientVersion: string | null = null;
+
+  /**
+   * Helper method to process an image input and return a complete ClassificationInput.
+   * Extracts default values, computes hashes, and prepares data for gRPC calls.
+   * @param input The image input to process.
+   * @returns Complete ClassificationInput ready to send to the service.
+   */
+  private async processImageInput(
+    input: ClassifyImageInput,
+  ): Promise<ClassificationInput> {
+    const {
+      affiliate = this.options.affiliate,
+      correlationId = randomUUID().toString(),
+      encoding = RequestEncoding.REQUEST_ENCODING_UNCOMPRESSED,
+      includeHashes = [HashType.HASH_TYPE_MD5, HashType.HASH_TYPE_SHA1],
+    } = input;
+
+    const shouldResize = input.resize !== false;
+    const inputFormat: ImageFormat =
+      'format' in input ? input.format : ImageFormat.IMAGE_FORMAT_UNSPECIFIED;
+
+    const { md5, sha1, data, format } = await computeHashesFromStream(
+      input.data,
+      encoding,
+      inputFormat,
+      shouldResize,
+      includeHashes,
+    );
+
+    const hashes: ImageHash[] = [];
+
+    if (md5 && md5.trim() !== '') {
+      hashes.push({ value: md5, type: HashType.HASH_TYPE_MD5 });
+    }
+
+    if (sha1 && sha1.trim() !== '') {
+      hashes.push({ value: sha1, type: HashType.HASH_TYPE_SHA1 });
+    }
+
+    return {
+      affiliate,
+      correlationId,
+      data,
+      format,
+      encoding,
+      hashes,
+    };
+  }
 
   /**
    * Constructs a new ClassifierSdk instance.
@@ -129,13 +179,38 @@ export class ClassifierSdk extends (EventEmitter as new () => TypedEventEmitter<
   }
 
   /**
+   * Creates fresh metadata with standard headers and authentication.
+   * @returns Promise resolving to configured metadata.
+   */
+  private async createMetadata(): Promise<grpc.Metadata> {
+    const metadata = new grpc.Metadata();
+
+    // Lazy load version on first use
+    if (ClassifierSdk.clientVersion === null) {
+      try {
+        const require = createRequire(import.meta.url);
+        const packageJson = require('../package.json');
+        ClassifierSdk.clientVersion = packageJson.version ?? 'unknown';
+      } catch {
+        ClassifierSdk.clientVersion = 'unknown';
+      }
+    }
+
+    metadata.set(
+      'x-client-version',
+      `athena-nodejs-client/${ClassifierSdk.clientVersion}`,
+    );
+    metadata.set('x-client-language', 'nodejs');
+    await this.auth.appendAuthorizationToMetadata(metadata);
+    return metadata;
+  }
+
+  /**
    * Lists available deployments from the Athena service.
    * @returns Promise resolving to an array of deployments.
    */
   public async listDeployments(): Promise<Deployment[]> {
-    const metadata = new grpc.Metadata();
-
-    await this.auth.appendAuthorizationToMetadata(metadata);
+    const metadata = await this.createMetadata();
 
     return new Promise<Deployment[]>((resolve, reject) => {
       this.client.listDeployments(Empty, metadata, (err, response) => {
@@ -154,22 +229,14 @@ export class ClassifierSdk extends (EventEmitter as new () => TypedEventEmitter<
    * @returns Promise that resolves when the stream is open.
    */
   public async open(): Promise<void> {
-    if (this.metadata === undefined) {
-      this.metadata = new grpc.Metadata();
+    const metadata = await this.createMetadata();
 
-      this.metadata.set('x-client-version', 'athena-nodejs-client/0.1.0');
-      this.metadata.set('x-client-language', 'nodejs');
-
-      await this.auth.appendAuthorizationToMetadata(this.metadata);
-    }
-
-    this.classifierGrpcCall = this.client.classify(this.metadata);
+    this.classifierGrpcCall = this.client.classify(metadata);
 
     // Setup interval to keep the grpc client alive.
     this.keepAlive = setInterval(async () => {
-      if (this.classifierGrpcCall && this.metadata) {
+      if (this.classifierGrpcCall) {
         try {
-          await this.auth.appendAuthorizationToMetadata(this.metadata);
           this.classifierGrpcCall.write({
             deploymentId: this.options.deploymentId,
             inputs: [],
@@ -245,47 +312,9 @@ export class ClassifierSdk extends (EventEmitter as new () => TypedEventEmitter<
 
     const processedInputs: ClassificationInput[] = [];
 
-    for (const options of requests) {
-      const {
-        affiliate = this.options.affiliate,
-        correlationId = randomUUID().toString(),
-        data: inputData,
-        includeHashes = [HashType.HASH_TYPE_MD5, HashType.HASH_TYPE_SHA1],
-        encoding = RequestEncoding.REQUEST_ENCODING_UNCOMPRESSED,
-      } = options;
-
-      let inputFormat: ImageFormat = ImageFormat.IMAGE_FORMAT_UNSPECIFIED;
-
-      if ('resize' in options === false) {
-        inputFormat = options.format;
-      }
-
-      const { md5, sha1, data, format } = await computeHashesFromStream(
-        inputData,
-        encoding,
-        inputFormat,
-        'resize' in options,
-        includeHashes,
-      );
-
-      const hashes: ImageHash[] = [];
-
-      if (md5 && md5.trim() != '') {
-        hashes.push({ value: md5, type: HashType.HASH_TYPE_MD5 });
-      }
-
-      if (sha1 && sha1.trim() != '') {
-        hashes.push({ value: sha1, type: HashType.HASH_TYPE_SHA1 });
-      }
-
-      processedInputs.push({
-        affiliate,
-        correlationId,
-        encoding,
-        data,
-        format,
-        hashes,
-      });
+    for (const request of requests) {
+      const input = await this.processImageInput(request);
+      processedInputs.push(input);
     }
 
     const classifyRequest: ClassifyRequest = {
@@ -308,49 +337,8 @@ export class ClassifierSdk extends (EventEmitter as new () => TypedEventEmitter<
   public async classifySingle(
     request: ClassifyImageInput,
   ): Promise<ClassificationOutput> {
-    const options = {
-      affiliate: this.options.affiliate,
-      correlationId: randomUUID().toString(),
-      includeHashes: [HashType.HASH_TYPE_MD5, HashType.HASH_TYPE_SHA1],
-      encoding: request.encoding,
-    };
-
-    let inputFormat: ImageFormat = ImageFormat.IMAGE_FORMAT_UNSPECIFIED;
-
-    if ('resize' in request === false) {
-      inputFormat = request.format;
-    }
-
-    const { md5, sha1, data, format } = await computeHashesFromStream(
-      request.data,
-      options.encoding,
-      inputFormat,
-      'resize' in request,
-      options.includeHashes,
-    );
-
-    const hashes: ImageHash[] = [];
-
-    if (md5 && md5.trim() != '') {
-      hashes.push({ value: md5, type: HashType.HASH_TYPE_MD5 });
-    }
-
-    if (sha1 && sha1.trim() != '') {
-      hashes.push({ value: sha1, type: HashType.HASH_TYPE_SHA1 });
-    }
-
-    const input: ClassificationInput = {
-      affiliate: this.options.affiliate,
-      correlationId: options.correlationId,
-      data: data,
-      format: format,
-      encoding: options.encoding,
-      hashes: hashes,
-    };
-
-    const metadata = new grpc.Metadata();
-
-    await this.auth.appendAuthorizationToMetadata(metadata);
+    const input = await this.processImageInput(request);
+    const metadata = await this.createMetadata();
 
     return new Promise<ClassificationOutput>((resolve, reject) => {
       this.client.classifySingle(input, metadata, (err, response) => {

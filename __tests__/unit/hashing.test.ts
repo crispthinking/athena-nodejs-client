@@ -42,7 +42,7 @@ describe('hashing', () => {
       );
 
       expect(data).toBeDefined();
-      expect(format).toBe(ImageFormat.IMAGE_FORMAT_RAW_UINT8);
+      expect(format).toBe(ImageFormat.IMAGE_FORMAT_RAW_UINT8_BGR);
 
       expect(md5).toEqual('d390b6cd7436fd41d1bcd005e7e3e652');
       expect(sha1).toEqual('7f979ca35cfe390bd92f5dfa4a05919da76f0e43');
