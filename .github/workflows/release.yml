@@ -36,6 +36,7 @@ jobs:
 
       - run: npm ci
       - run: npm run codegen
+      - run: npm run build:release
 
       - name: Publish to npm
         run: npm publish --provenance --access public
