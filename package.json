@@ -26,7 +26,7 @@
     "@typescript-eslint/parser": "~8.44",
     "@vitest/coverage-v8": "^3.2.4",
     "@vitest/eslint-plugin": "~1.3",
-    "eslint": "^9.35.0",
+    "eslint": "^9.38.0",
     "eslint-config-prettier": "~10.1",
     "globals": "~16.4",
     "grpc_tools_node_protoc": "^1.0.0",
@@ -38,7 +38,7 @@
     "typed-emitter": "^2.1.0",
     "typedoc": "^0.28.12",
     "typescript": "~5.9",
-    "typescript-eslint": "~8.44",
+    "typescript-eslint": "~8.46",
     "vitest": "^3.2.4"
   },
   "scripts": {
@@ -66,12 +66,12 @@
   "author": "Kroll Opensource <opensource@kroll.com>",
   "license": "MIT",
   "dependencies": {
-    "@bufbuild/protobuf": "^2.7.0",
+    "@bufbuild/protobuf": "^2.10.0",
     "@grpc/grpc-js": "^1.14.0",
     "@grpc/proto-loader": "^0.8.0",
     "brotli": "^1.3.3",
     "jwt-decode": "^4.0.0",
-    "openid-client": "^6.7.1",
+    "openid-client": "^6.8.1",
     "protobufjs": "^7.5.4",
     "rxjs": "^7.8.2",
     "sharp": "^0.34.4",
