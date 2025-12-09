@@ -35,7 +35,6 @@ jobs:
           fi
 
       - run: npm ci
-      - run: npm run codegen
       - run: npm run build:release
 
       - name: Publish to npm
