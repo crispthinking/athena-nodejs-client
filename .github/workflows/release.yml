@@ -1,3 +1,5 @@
+name: Release to npm
+
 on:
   release:
     types: [published]
@@ -5,17 +7,22 @@ on:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    environment: npm
     permissions:
       contents: read
-      packages: write # allow GITHUB_TOKEN to publish packages
+      id-token: write
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
-        with:
-          node-version: '22'
+      - name: Checkout code
+        uses: actions/checkout@v5
 
       - name: Submodules
         run: git submodule update --init --recursive
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          registry-url: 'https://registry.npmjs.org'
 
       - name: Set version from tag
         run: |
@@ -31,10 +38,9 @@ jobs:
 
       - run: npm ci
       - run: npm run codegen
-
       - run: npm run build:release
-      - uses: JS-DevTools/npm-publish@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          registry: 'https://npm.pkg.github.com'
-          access: restricted
+
+      - name: Publish to npm
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
