@@ -3,6 +3,7 @@ name: Release to npm
 on:
   release:
     types: [published]
+  workflow_dispatch:
 
 jobs:
   publish:
@@ -40,5 +41,7 @@ jobs:
           npm ci
           npm run codegen
           npm run build:release
-          npm publish --access public
+          npm publish --provenance --access public
         name: Build and Publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
