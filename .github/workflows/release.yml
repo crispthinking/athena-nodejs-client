@@ -40,5 +40,5 @@ jobs:
           npm ci
           npm run codegen
           npm run build:release
-          npm publish --provenance --access public
+          npm publish --access public
         name: Build and Publish
