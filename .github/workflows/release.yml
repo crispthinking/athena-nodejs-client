@@ -11,7 +11,7 @@ jobs:
     permissions:
       contents: read
       id-token: write
-      actions: read # Required to download artifacts from other workflows
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
@@ -42,5 +42,3 @@ jobs:
           npm run build:release
           npm publish --provenance --access public
         name: Build and Publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
