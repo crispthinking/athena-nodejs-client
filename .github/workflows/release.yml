@@ -77,7 +77,7 @@ jobs:
               const postData = JSON.stringify({});
               const options = {
                 hostname: 'registry.npmjs.org',
-                path: '/-/npm/v1/security/oidc/token',
+                path: '/-/npm/v1/security/oidc/login',
                 method: 'POST',
                 headers: {
                   'Authorization': `Bearer ${token}`,
