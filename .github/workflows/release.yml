@@ -3,7 +3,6 @@ name: Release to npm
 on:
   release:
     types: [published]
-
   workflow_dispatch:
     inputs:
       version:
@@ -28,6 +27,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "22"
+          registry-url: "https://registry.npmjs.org"
 
       - name: Set version from tag or input
         run: |
