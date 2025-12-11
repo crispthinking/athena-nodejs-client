@@ -51,13 +51,24 @@ jobs:
           npm --no-git-tag-version version "$VERSION" || exit 1
           echo "PACKAGE_VERSION=$VERSION" >> $GITHUB_ENV
 
-      - run: |
+      - name: Build and Publish
+        run: |
           echo "Publishing version: $PACKAGE_VERSION"
           cat package.json | grep -A2 '"name"'
           npm ci
           npm run codegen
           npm run build:release
+          
+          # Get OIDC token from GitHub
+          OIDC_TOKEN=$(curl -s -H "Authorization: bearer ${{ secrets.GITHUB_TOKEN }}" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL?audience=https://registry.npmjs.org" | \
+            jq -r '.token')
+          
+          # Exchange OIDC token for NPM token
+          NPM_TOKEN=$(curl -s -X POST https://registry.npmjs.org/-/npm/v1/security/oidc/token \
+            -H "Authorization: Bearer $OIDC_TOKEN" | \
+            jq -r '.token')
+          
+          # Use the temporary token for publishing
+          echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
           npm publish --provenance --access public
-        name: Build and Publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
