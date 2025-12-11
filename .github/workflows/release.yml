@@ -58,3 +58,5 @@ jobs:
           npm run build:release
           npm publish --provenance --access public
         name: Build and Publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
