@@ -34,7 +34,9 @@ jobs:
         run: |
           # Check if version was provided via workflow_dispatch input
           if [[ -n "${{ inputs.version }}" ]]; then
-            VERSION="${{ inputs.version }}"
+            INPUT_VERSION="${{ inputs.version }}"
+            # Remove 'v' prefix if present
+            VERSION=${INPUT_VERSION#v}
             echo "Using version from workflow input: $VERSION"
           elif [[ "$GITHUB_REF" == refs/tags/* ]]; then
             TAG_VERSION=${GITHUB_REF#refs/tags/}
@@ -58,5 +60,3 @@ jobs:
           npm run build:release
           npm publish --provenance --access public
         name: Build and Publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
