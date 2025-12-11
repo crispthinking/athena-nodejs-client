@@ -27,7 +27,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "22"
-          registry-url: "https://registry.npmjs.org"
+
+      - name: Ensure Clean Environment
+        run: |
+          unset NODE_AUTH_TOKEN
+          unset NPM_TOKEN
+          npm config set @crispthinking:registry https://registry.npmjs.org
 
       - name: Set version from tag or input
         run: |
@@ -40,7 +45,6 @@ jobs:
             VERSION=${TAG_VERSION#v}
             echo "Using version from git tag: $VERSION"
           else
-            echo "No version provided and not building from a tag, using default 0.0.0"
             VERSION="0.0.0"
           fi
 
