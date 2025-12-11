@@ -27,7 +27,10 @@ jobs:
           node-version: "22"
 
       - name: Configure Registry
-        run: npm config set @crispthinking:registry https://registry.npmjs.org
+        run: |
+          npm config set registry https://registry.npmjs.org/
+          npm config set @crispthinking:registry https://registry.npmjs.org/
+          npm config list
 
       - name: Set version
         run: |
