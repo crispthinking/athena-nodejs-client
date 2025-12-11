@@ -51,40 +51,72 @@ jobs:
           npm --no-git-tag-version version "$VERSION" || exit 1
           echo "PACKAGE_VERSION=$VERSION" >> $GITHUB_ENV
 
-      - name: Build and Publish
+      - name: Build
         run: |
           echo "Publishing version: $PACKAGE_VERSION"
           cat package.json | grep -A2 '"name"'
           npm ci
           npm run codegen
           npm run build:release
-          
-          # Get OIDC token from GitHub
-          echo "Requesting OIDC token..."
-          OIDC_TOKEN=$(curl -s -H "Authorization: bearer ${{ secrets.GITHUB_TOKEN }}" \
-            "$ACTIONS_ID_TOKEN_REQUEST_URL?audience=https://registry.npmjs.org" | \
-            jq -r '.token')
-          
-          if [[ -z "$OIDC_TOKEN" || "$OIDC_TOKEN" == "null" ]]; then
-            echo "Failed to get OIDC token"
-            exit 1
-          fi
-          echo "Got OIDC token"
-          
-          # Exchange OIDC token for NPM token
-          echo "Exchanging for NPM token..."
-          RESPONSE=$(curl -s -X POST https://registry.npmjs.org/-/npm/v1/security/oidc/token \
-            -H "Authorization: Bearer $OIDC_TOKEN")
-          echo "NPM response: $RESPONSE"
-          
-          NPM_TOKEN=$(echo "$RESPONSE" | jq -r '.token')
-          
-          if [[ -z "$NPM_TOKEN" || "$NPM_TOKEN" == "null" ]]; then
-            echo "Failed to get NPM token from OIDC exchange"
-            exit 1
-          fi
-          echo "Got NPM token"
-          
-          # Use the temporary token for publishing
-          echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
-          npm publish --provenance --access public
+
+      - name: Get NPM token via OIDC
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const https = require('https');
+            const fs = require('fs');
+            
+            // Get OIDC token from GitHub
+            console.log('Getting OIDC token from GitHub...');
+            const token = await core.getIDToken('https://registry.npmjs.org');
+            console.log('Successfully got OIDC token');
+            
+            // Exchange it with NPM
+            console.log('Exchanging OIDC token for NPM access token...');
+            return new Promise((resolve, reject) => {
+              const postData = JSON.stringify({});
+              const options = {
+                hostname: 'registry.npmjs.org',
+                path: '/-/npm/v1/security/oidc/token',
+                method: 'POST',
+                headers: {
+                  'Authorization': `Bearer ${token}`,
+                  'Content-Type': 'application/json',
+                  'Content-Length': Buffer.byteLength(postData)
+                }
+              };
+              
+              const req = https.request(options, (res) => {
+                let body = '';
+                res.on('data', chunk => body += chunk);
+                res.on('end', () => {
+                  try {
+                    const data = JSON.parse(body);
+                    if (res.statusCode !== 200) {
+                      console.log('NPM returned status:', res.statusCode);
+                      console.log('Response:', body);
+                      throw new Error(`NPM returned ${res.statusCode}`);
+                    }
+                    if (!data.token) {
+                      throw new Error('No token in NPM response');
+                    }
+                    console.log('Got NPM token, updating .npmrc');
+                    const npmrcPath = `${process.env.HOME}/.npmrc`;
+                    let npmrc = fs.readFileSync(npmrcPath, 'utf8');
+                    npmrc += `\n//registry.npmjs.org/:_authToken=${data.token}\n`;
+                    fs.writeFileSync(npmrcPath, npmrc);
+                    console.log('Updated .npmrc with auth token');
+                    resolve();
+                  } catch (err) {
+                    reject(err);
+                  }
+                });
+              });
+              
+              req.on('error', reject);
+              req.write(postData);
+              req.end();
+            });
+
+      - name: Publish to NPM
+        run: npm publish --provenance --access public
