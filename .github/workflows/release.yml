@@ -60,14 +60,30 @@ jobs:
           npm run build:release
           
           # Get OIDC token from GitHub
+          echo "Requesting OIDC token..."
           OIDC_TOKEN=$(curl -s -H "Authorization: bearer ${{ secrets.GITHUB_TOKEN }}" \
             "$ACTIONS_ID_TOKEN_REQUEST_URL?audience=https://registry.npmjs.org" | \
             jq -r '.token')
           
+          if [[ -z "$OIDC_TOKEN" || "$OIDC_TOKEN" == "null" ]]; then
+            echo "Failed to get OIDC token"
+            exit 1
+          fi
+          echo "Got OIDC token"
+          
           # Exchange OIDC token for NPM token
-          NPM_TOKEN=$(curl -s -X POST https://registry.npmjs.org/-/npm/v1/security/oidc/token \
-            -H "Authorization: Bearer $OIDC_TOKEN" | \
-            jq -r '.token')
+          echo "Exchanging for NPM token..."
+          RESPONSE=$(curl -s -X POST https://registry.npmjs.org/-/npm/v1/security/oidc/token \
+            -H "Authorization: Bearer $OIDC_TOKEN")
+          echo "NPM response: $RESPONSE"
+          
+          NPM_TOKEN=$(echo "$RESPONSE" | jq -r '.token')
+          
+          if [[ -z "$NPM_TOKEN" || "$NPM_TOKEN" == "null" ]]; then
+            echo "Failed to get NPM token from OIDC exchange"
+            exit 1
+          fi
+          echo "Got NPM token"
           
           # Use the temporary token for publishing
           echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
