@@ -1,19 +1,62 @@
+name: Release to npm
+
+on:
+  release:
+    types: [published]
+
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to publish (e.g., 0.8.6). If not provided, uses git tag."
+        required: false
+        type: string
+
 jobs:
   publish:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      id-token: write # Needed for --provenance signing
+      id-token: write
 
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: "22"
           registry-url: "https://registry.npmjs.org"
 
-      - run: npm ci
-      - run: npm run build:release
+      - name: Set version from tag or input
+        run: |
+          if [[ -n "${{ inputs.version }}" ]]; then
+            INPUT_VERSION="${{ inputs.version }}"
+            VERSION=${INPUT_VERSION#v}
+            echo "Using version from workflow input: $VERSION"
+          elif [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            TAG_VERSION=${GITHUB_REF#refs/tags/}
+            VERSION=${TAG_VERSION#v}
+            echo "Using version from git tag: $VERSION"
+          else
+            echo "No version provided and not building from a tag, using default 0.0.0"
+            VERSION="0.0.0"
+          fi
+
+          echo "Setting version to: $VERSION"
+          npm --no-git-tag-version version "$VERSION" || exit 1
+          echo "PACKAGE_VERSION=$VERSION" >> $GITHUB_ENV
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: |
+          echo "Building version: $PACKAGE_VERSION"
+          npm run codegen
+          npm run build:release
 
       - name: Publish to NPM
         run: npm publish --provenance --access public
