@@ -24,10 +24,11 @@ jobs:
           submodules: recursive
 
       - name: Setup Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v4
         with:
           node-version: '22'
           registry-url: 'https://registry.npmjs.org'
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set version from tag or input
         run: |
