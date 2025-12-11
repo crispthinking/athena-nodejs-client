@@ -29,6 +29,13 @@ jobs:
           node-version: '22'
           registry-url: 'https://registry.npmjs.org'
           token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Configure NPM for OIDC
+        run: |
+          cat > ~/.npmrc << EOF
+          @crispthinking:registry=https://registry.npmjs.org/
+          registry=https://registry.npmjs.org/
+          EOF
 
       - name: Set version from tag or input
         run: |
@@ -55,6 +62,9 @@ jobs:
       - run: |
           echo "Publishing version: $PACKAGE_VERSION"
           cat package.json | grep -A2 '"name"'
+          echo "Checking npm config:"
+          npm config get registry
+          npm config get //registry.npmjs.org/:_authToken
           npm ci
           npm run codegen
           npm run build:release
