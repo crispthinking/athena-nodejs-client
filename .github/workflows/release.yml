@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Version to publish (e.g., 0.8.6). If not provided, uses git tag."
+        description: "Version to publish (e.g., 0.8.6)"
         required: false
         type: string
 
@@ -18,48 +18,34 @@ jobs:
       id-token: write
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: "22"
 
-      - name: Ensure Clean Environment
-        run: |
-          unset NODE_AUTH_TOKEN
-          unset NPM_TOKEN
-          npm config set @crispthinking:registry https://registry.npmjs.org
+      - name: Configure Registry
+        run: npm config set @crispthinking:registry https://registry.npmjs.org
 
-      - name: Set version from tag or input
+      - name: Set version
         run: |
           if [[ -n "${{ inputs.version }}" ]]; then
-            INPUT_VERSION="${{ inputs.version }}"
-            VERSION=${INPUT_VERSION#v}
-            echo "Using version from workflow input: $VERSION"
+            VERSION=${{ inputs.version }}
+            VERSION=${VERSION#v}
           elif [[ "$GITHUB_REF" == refs/tags/* ]]; then
             TAG_VERSION=${GITHUB_REF#refs/tags/}
             VERSION=${TAG_VERSION#v}
-            echo "Using version from git tag: $VERSION"
           else
             VERSION="0.0.0"
           fi
-
-          echo "Setting version to: $VERSION"
-          npm --no-git-tag-version version "$VERSION" || exit 1
           echo "PACKAGE_VERSION=$VERSION" >> $GITHUB_ENV
+          npm --no-git-tag-version version "$VERSION"
 
-      - name: Install dependencies
-        run: npm ci
+      - run: npm ci
+      - run: npm run codegen
+      - run: npm run build:release
 
-      - name: Build
-        run: |
-          echo "Building version: $PACKAGE_VERSION"
-          npm run codegen
-          npm run build:release
-
-      - name: Publish to NPM
+      - name: Publish
         run: npm publish --provenance --access public
