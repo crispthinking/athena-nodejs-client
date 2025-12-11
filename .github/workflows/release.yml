@@ -28,8 +28,16 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-          registry-url: "https://registry.npmjs.org"
-          scope: "@crispthinking"
+
+      - name: Configure Registry & Clean Env
+        run: |
+          unset NODE_AUTH_TOKEN
+          unset NPM_TOKEN
+
+          npm config set registry https://registry.npmjs.org/
+          npm config set @crispthinking:registry https://registry.npmjs.org/
+
+          npm config list
 
       - name: Set version
         run: |
