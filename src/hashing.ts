@@ -1,5 +1,4 @@
 import { Readable } from 'stream';
-import { createRequire } from 'module';
 import crypto from 'crypto';
 import sharp from 'sharp';
 import {
@@ -9,34 +8,6 @@ import {
 } from './generated/athena/models.js';
 import brotli from 'brotli';
 import { buffer } from 'stream/consumers';
-
-const require_ = createRequire(import.meta.url);
-const { cv } = require_('opencv-wasm') as {
-  cv: {
-    Mat: new (
-      rows: number,
-      cols: number,
-      type: number,
-    ) => {
-      data: Uint8Array;
-      rows: number;
-      cols: number;
-      channels(): number;
-      delete(): void;
-    };
-    Size: new (width: number, height: number) => unknown;
-    CV_8UC3: number;
-    INTER_LINEAR: number;
-    resize(
-      src: unknown,
-      dst: unknown,
-      size: unknown,
-      fx: number,
-      fy: number,
-      interpolation: number,
-    ): void;
-  };
-};
 
 /**
  * Computes MD5 and SHA1 hashes from a readable stream and resizes any image data.
@@ -85,29 +56,12 @@ export async function computeHashesFromStream(
   if (resize) {
     const rawBuffer = await buffer(stream);
 
-    const decoded = await sharp(rawBuffer)
+    data = await sharp(rawBuffer)
+      .resize(448, 448)
       .removeAlpha()
       .raw({ depth: 'uchar' })
-      .toBuffer({ resolveWithObject: true });
+      .toBuffer();
 
-    const { data: rgbPixels, info } = decoded;
-
-    const srcMat = new cv.Mat(info.height, info.width, cv.CV_8UC3);
-    srcMat.data.set(rgbPixels);
-
-    const dstMat = new cv.Mat(448, 448, cv.CV_8UC3);
-    cv.resize(srcMat, dstMat, new cv.Size(448, 448), 0, 0, cv.INTER_LINEAR);
-
-    const resizedRgb = Buffer.from(dstMat.data);
-    srcMat.delete();
-    dstMat.delete();
-
-    data = Buffer.alloc(resizedRgb.length);
-    for (let i = 0; i < resizedRgb.length; i += 3) {
-      data[i] = resizedRgb[i + 2]!; // B ← R
-      data[i + 1] = resizedRgb[i + 1]!; // G ← G
-      data[i + 2] = resizedRgb[i]!; // R ← B
-    }
     imageFormat = ImageFormat.IMAGE_FORMAT_RAW_UINT8_BGR;
   } else {
     data = await buffer(stream);
