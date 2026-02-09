@@ -13,7 +13,11 @@ import { buffer } from 'stream/consumers';
 const require_ = createRequire(import.meta.url);
 const { cv } = require_('opencv-wasm') as {
   cv: {
-    Mat: new (rows: number, cols: number, type: number) => {
+    Mat: new (
+      rows: number,
+      cols: number,
+      type: number,
+    ) => {
       data: Uint8Array;
       rows: number;
       cols: number;
@@ -100,9 +104,9 @@ export async function computeHashesFromStream(
 
     data = Buffer.alloc(resizedRgb.length);
     for (let i = 0; i < resizedRgb.length; i += 3) {
-      data[i] = resizedRgb[i + 2]!;     // B ← R
+      data[i] = resizedRgb[i + 2]!; // B ← R
       data[i + 1] = resizedRgb[i + 1]!; // G ← G
-      data[i + 2] = resizedRgb[i]!;     // R ← B
+      data[i + 2] = resizedRgb[i]!; // R ← B
     }
     imageFormat = ImageFormat.IMAGE_FORMAT_RAW_UINT8_BGR;
   } else {
