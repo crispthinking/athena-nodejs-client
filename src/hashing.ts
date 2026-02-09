@@ -54,18 +54,14 @@ export async function computeHashesFromStream(
   }
 
   if (resize) {
-    const resizer = sharp()
-      .resize(448, 448, { kernel: 'linear' })
-      .raw({ depth: 'char' });
-    stream.pipe(resizer);
-    const rgbData = await resizer.toBuffer();
-    // Sharp outputs RGB format, but Athena expects BGR - swap R and B channels
-    data = Buffer.alloc(rgbData.length);
-    for (let i = 0; i < rgbData.length; i += 3) {
-      data[i] = rgbData[i + 2]; // B <- R
-      data[i + 1] = rgbData[i + 1]; // G <- G
-      data[i + 2] = rgbData[i]; // R <- B
-    }
+    const rawBuffer = await buffer(stream);
+
+    data = await sharp(rawBuffer)
+      .resize(448, 448)
+      .removeAlpha()
+      .raw({ depth: 'uchar' })
+      .toBuffer();
+
     imageFormat = ImageFormat.IMAGE_FORMAT_RAW_UINT8_BGR;
   } else {
     data = await buffer(stream);
