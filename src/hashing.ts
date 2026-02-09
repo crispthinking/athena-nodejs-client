@@ -57,7 +57,7 @@ export async function computeHashesFromStream(
     const rawBuffer = await buffer(stream);
 
     data = await sharp(rawBuffer)
-      .resize(448, 448)
+      .resize(448, 448, { kernel: 'linear' })
       .removeAlpha()
       .raw({ depth: 'uchar' })
       .toBuffer();
