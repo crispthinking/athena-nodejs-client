@@ -54,7 +54,10 @@ export async function computeHashesFromStream(
   }
 
   if (resize) {
-    const resizer = sharp().resize(448, 448).raw({ depth: 'char' });
+    const resizer = sharp()
+      .resize(448, 448, { fit: 'cover' })
+      .raw({ depth: 'char' });
+
     stream.pipe(resizer);
     const rgbData = await resizer.toBuffer();
     // Sharp outputs RGB format, but Athena expects BGR - swap R and B channels
