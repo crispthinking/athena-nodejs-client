@@ -55,7 +55,7 @@ export async function computeHashesFromStream(
 
   if (resize) {
     const resizer = sharp()
-      .resize(448, 448, { fit: 'cover' })
+      .resize(448, 448, { fit: 'fill' })
       .raw({ depth: 'char' });
 
     stream.pipe(resizer);
