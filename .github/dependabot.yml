@@ -4,14 +4,27 @@ updates:
     directory: '/'
     schedule:
       interval: 'weekly'
+    groups:
+      all:
+        patterns:
+          - '*'
   - package-ecosystem: 'npm'
     directory: '/'
     schedule:
       interval: 'weekly'
+    groups:
+      dev-dependencies:
+        dependency-type: 'development'
+        patterns:
+          - '*'
   - package-ecosystem: 'github-actions'
     directory: '/'
     schedule:
       interval: 'weekly'
+    groups:
+      all:
+        patterns:
+          - '*'
   - package-ecosystem: 'gitsubmodule'
     directory: '/'
     schedule:
