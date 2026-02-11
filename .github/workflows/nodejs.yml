@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Submodules
         run: git submodule update --init --recursive
@@ -38,7 +38,7 @@ jobs:
         run: npm run test:unit
 
       - name: Upload build artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: build-dist
           path: |
@@ -51,10 +51,49 @@ jobs:
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: unit-test-results
           path: |
             **/*test-results*
             **/*coverage*
           retention-days: 7
+
+  publish-pr:
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Download build artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: build-dist
+          path: ./package
+
+      - name: Setup Node.js for GitHub Packages
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          registry-url: "https://npm.pkg.github.com"
+          scope: "@crispthinking"
+
+      - name: Set pre-release version
+        working-directory: ./package
+        run: |
+          PR_NUMBER=${{ github.event.pull_request.number }}
+          SHORT_SHA=${GITHUB_SHA::7}
+          VERSION="0.0.0-pr.${PR_NUMBER}.${SHORT_SHA}"
+          npm --no-git-tag-version version "$VERSION"
+
+      - name: Publish pre-release package
+        working-directory: ./package
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_TAG="pr-${{ github.event.pull_request.number }}"
+          npm publish --tag "$PR_TAG"
