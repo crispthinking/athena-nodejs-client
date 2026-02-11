@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Submodules
         run: git submodule update --init --recursive
@@ -38,7 +38,7 @@ jobs:
         run: npm run test:unit
 
       - name: Upload build artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: build-dist
           path: |
@@ -51,7 +51,7 @@ jobs:
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: unit-test-results
           path: |
@@ -70,13 +70,13 @@ jobs:
       packages: write
     steps:
       - name: Download build artifact
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v7
         with:
           name: build-dist
           path: ./package
 
       - name: Setup Node.js for GitHub Packages
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: "22"
           registry-url: "https://npm.pkg.github.com"
