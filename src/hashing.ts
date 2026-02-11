@@ -98,15 +98,15 @@ export async function computeHashesFromStream(
     const dstMat = new cv.Mat(448, 448, cv.CV_8UC3);
     cv.resize(srcMat, dstMat, new cv.Size(448, 448), 0, 0, cv.INTER_LINEAR);
 
-    const resizedRgb = Buffer.from(dstMat.data);
+    data = Buffer.from(dstMat.data);
     srcMat.delete();
     dstMat.delete();
 
-    data = Buffer.alloc(resizedRgb.length);
-    for (let i = 0; i < resizedRgb.length; i += 3) {
-      data[i] = resizedRgb[i + 2]!; // B ← R
-      data[i + 1] = resizedRgb[i + 1]!; // G ← G
-      data[i + 2] = resizedRgb[i]!; // R ← B
+    // Swap R and B channels in-place (RGB → BGR)
+    for (let i = 0; i < data.length; i += 3) {
+      const r = data[i]!;
+      data[i] = data[i + 2]!; // R position gets B
+      data[i + 2] = r; // B position gets R
     }
     imageFormat = ImageFormat.IMAGE_FORMAT_RAW_UINT8_BGR;
   } else {
