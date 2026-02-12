@@ -103,14 +103,15 @@ export async function computeHashesFromStream(
 
     const dstMat = new cv.Mat(448, 448, cv.CV_8UC3);
     cv.resize(srcMat, dstMat, new cv.Size(448, 448), 0, 0, cv.INTER_LINEAR);
+    srcMat.delete();
 
     const bgrMat = new cv.Mat(448, 448, cv.CV_8UC3);
     cv.cvtColor(dstMat, bgrMat, cv.COLOR_RGB2BGR);
+    dstMat.delete();
 
     data = Buffer.from(bgrMat.data);
-    srcMat.delete();
-    dstMat.delete();
     bgrMat.delete();
+
     imageFormat = ImageFormat.IMAGE_FORMAT_RAW_UINT8_BGR;
   } else {
     data = await buffer(stream);
