@@ -1,4 +1,5 @@
 import { Readable } from 'stream';
+import { createRequire } from 'module';
 import crypto from 'crypto';
 import sharp from 'sharp';
 import {
@@ -8,6 +9,9 @@ import {
 } from './generated/athena/models.js';
 import brotli from 'brotli';
 import { buffer } from 'stream/consumers';
+
+const require_ = createRequire(import.meta.url);
+const { cv } = require_('opencv-wasm');
 
 /**
  * Computes MD5 and SHA1 hashes from a readable stream and resizes any image data.
@@ -54,16 +58,29 @@ export async function computeHashesFromStream(
   }
 
   if (resize) {
-    const resizer = sharp().resize(448, 448).raw({ depth: 'char' });
-    stream.pipe(resizer);
-    const rgbData = await resizer.toBuffer();
-    // Sharp outputs RGB format, but Athena expects BGR - swap R and B channels
-    data = Buffer.alloc(rgbData.length);
-    for (let i = 0; i < rgbData.length; i += 3) {
-      data[i] = rgbData[i + 2]; // B <- R
-      data[i + 1] = rgbData[i + 1]; // G <- G
-      data[i + 2] = rgbData[i]; // R <- B
-    }
+    const rawBuffer = await buffer(stream);
+
+    const decoded = await sharp(rawBuffer)
+      .removeAlpha()
+      .raw({ depth: 'uchar' })
+      .toBuffer({ resolveWithObject: true });
+
+    const { data: rgbPixels, info } = decoded;
+
+    const srcMat = new cv.Mat(info.height, info.width, cv.CV_8UC3);
+    srcMat.data.set(rgbPixels);
+
+    const dstMat = new cv.Mat(448, 448, cv.CV_8UC3);
+    cv.resize(srcMat, dstMat, new cv.Size(448, 448), 0, 0, cv.INTER_LINEAR);
+    srcMat.delete();
+
+    const bgrMat = new cv.Mat(448, 448, cv.CV_8UC3);
+    cv.cvtColor(dstMat, bgrMat, cv.COLOR_RGB2BGR);
+    dstMat.delete();
+
+    data = Buffer.from(bgrMat.data);
+    bgrMat.delete();
+
     imageFormat = ImageFormat.IMAGE_FORMAT_RAW_UINT8_BGR;
   } else {
     data = await buffer(stream);
