@@ -27,6 +27,7 @@ const { cv } = require_('opencv-wasm') as {
     Size: new (width: number, height: number) => unknown;
     CV_8UC3: number;
     INTER_LINEAR: number;
+    COLOR_RGB2BGR: number;
     resize(
       src: unknown,
       dst: unknown,
@@ -34,6 +35,11 @@ const { cv } = require_('opencv-wasm') as {
       fx: number,
       fy: number,
       interpolation: number,
+    ): void;
+    cvtColor(
+      src: unknown,
+      dst: unknown,
+      code: number,
     ): void;
   };
 };
@@ -98,16 +104,13 @@ export async function computeHashesFromStream(
     const dstMat = new cv.Mat(448, 448, cv.CV_8UC3);
     cv.resize(srcMat, dstMat, new cv.Size(448, 448), 0, 0, cv.INTER_LINEAR);
 
-    data = Buffer.from(dstMat.data);
+    const bgrMat = new cv.Mat(448, 448, cv.CV_8UC3);
+    cv.cvtColor(dstMat, bgrMat, cv.COLOR_RGB2BGR);
+
+    data = Buffer.from(bgrMat.data);
     srcMat.delete();
     dstMat.delete();
-
-    // Swap R and B channels in-place (RGB → BGR)
-    for (let i = 0; i < data.length; i += 3) {
-      const r = data[i]!;
-      data[i] = data[i + 2]!; // R position gets B
-      data[i + 2] = r; // B position gets R
-    }
+    bgrMat.delete();
     imageFormat = ImageFormat.IMAGE_FORMAT_RAW_UINT8_BGR;
   } else {
     data = await buffer(stream);
