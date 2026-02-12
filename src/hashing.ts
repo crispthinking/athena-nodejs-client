@@ -11,38 +11,7 @@ import brotli from 'brotli';
 import { buffer } from 'stream/consumers';
 
 const require_ = createRequire(import.meta.url);
-const { cv } = require_('opencv-wasm') as {
-  cv: {
-    Mat: new (
-      rows: number,
-      cols: number,
-      type: number,
-    ) => {
-      data: Uint8Array;
-      rows: number;
-      cols: number;
-      channels(): number;
-      delete(): void;
-    };
-    Size: new (width: number, height: number) => unknown;
-    CV_8UC3: number;
-    INTER_LINEAR: number;
-    COLOR_RGB2BGR: number;
-    resize(
-      src: unknown,
-      dst: unknown,
-      size: unknown,
-      fx: number,
-      fy: number,
-      interpolation: number,
-    ): void;
-    cvtColor(
-      src: unknown,
-      dst: unknown,
-      code: number,
-    ): void;
-  };
-};
+const { cv } = require_('opencv-wasm');
 
 /**
  * Computes MD5 and SHA1 hashes from a readable stream and resizes any image data.
