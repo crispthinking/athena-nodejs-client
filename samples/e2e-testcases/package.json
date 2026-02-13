@@ -9,7 +9,8 @@
     "dev": "npx tsx index.ts --help"
   },
   "dependencies": {
-    "@crispthinking/athena-classifier-sdk": "file:../../"
+    "@crispthinking/athena-classifier-sdk": "file:../../",
+    "commander": "^14.0.3"
   },
   "devDependencies": {
     "tsx": "^4.7.0"
@@ -17,7 +18,13 @@
   "engines": {
     "node": ">=18.0.0"
   },
-  "keywords": ["athena", "classification", "e2e", "testing", "validation"],
+  "keywords": [
+    "athena",
+    "classification",
+    "e2e",
+    "testing",
+    "validation"
+  ],
   "author": "Crisp Thinking",
   "license": "MIT"
 }

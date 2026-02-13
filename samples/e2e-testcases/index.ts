@@ -9,6 +9,7 @@
  */
 
 import { ClassifierSdk, ImageFormat, parseAudience } from '@crispthinking/athena-classifier-sdk';
+import { Command, Option, InvalidArgumentError } from 'commander';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -60,24 +61,40 @@ interface ImageComparisonResult {
 }
 
 /**
- * Display usage information
+ * CLI options interface
  */
-function showUsage(): void {
-  console.log(`
-🧪 Athena E2E Test Cases Runner
+interface CliOptions {
+  testset: TestSet;
+  tolerance: number;
+  verbose: boolean;
+  list: boolean;
+}
 
-Usage:
-  npx tsx index.ts [options]
-  npm start [options]
+/**
+ * Setup and parse CLI arguments using commander
+ */
+function parseArgs(): CliOptions {
+  const program = new Command();
 
-Options:
-  -h, --help                 Show this help message
-  -t, --testset <name>       Test set to run (default: integrator_sample)
-                             Valid: integrator_sample, benign_model, live_model
-  -T, --tolerance <value>    Comparison tolerance (default: 0.0001)
-  -v, --verbose              Enable verbose output
-  -l, --list                 List available test sets and exit
-
+  program
+    .name('athena-e2e-testcases')
+    .description('Athena E2E Test Cases Runner\n\nRuns shared end-to-end test cases from athena-protobufs/testcases/ through the Athena classification service and validates results against expected outputs.')
+    .version('1.0.0')
+    .addOption(
+      new Option('-t, --testset <name>', 'Test set to run')
+        .choices(VALID_TESTSETS as readonly string[])
+        .default('integrator_sample')
+    )
+    .option('-T, --tolerance <value>', 'Comparison tolerance', (value) => {
+      const parsed = parseFloat(value);
+      if (isNaN(parsed) || parsed < 0) {
+        throw new InvalidArgumentError('Tolerance must be a positive number');
+      }
+      return parsed;
+    }, 0.0001)
+    .option('-v, --verbose', 'Enable verbose output', false)
+    .option('-l, --list', 'List available test sets and exit', false)
+    .addHelpText('after', `
 Environment Variables (Required):
   ATHENA_CLIENT_ID           OAuth client ID
   ATHENA_CLIENT_SECRET       OAuth client secret
@@ -89,64 +106,24 @@ Environment Variables (Optional):
   ATHENA_AUDIENCE            OAuth audience (default: crisp-athena-live)
 
 Examples:
-  # Run default test set
-  npx tsx index.ts
-
-  # Run specific test set with custom tolerance
-  npx tsx index.ts --testset live_model --tolerance 0.01
-
-  # Verbose output
-  npx tsx index.ts --verbose
+  $ npx tsx index.ts
+  $ npx tsx index.ts --testset live_model --tolerance 0.01
+  $ npx tsx index.ts --verbose --list
 
 Setup:
-  # Create environment file
   cp ../.env.example ../.env
-  # Edit ../.env with your credentials
-  # Source with auto-export
   set -a && source ../.env && set +a
 `);
-}
 
-/**
- * Parse command line arguments
- */
-function parseArgs(): { testset: TestSet; tolerance: number; verbose: boolean; list: boolean; help: boolean } {
-  const args = process.argv.slice(2);
-  const options = {
-    testset: 'integrator_sample' as TestSet,
-    tolerance: 0.0001,
-    verbose: false,
-    list: false,
-    help: false,
+  program.parse();
+
+  const opts = program.opts();
+  return {
+    testset: opts.testset as TestSet,
+    tolerance: opts.tolerance as number,
+    verbose: opts.verbose as boolean,
+    list: opts.list as boolean,
   };
-
-  for (let i = 0; i < args.length; i++) {
-    const arg = args[i];
-
-    if (arg === '-h' || arg === '--help') {
-      options.help = true;
-    } else if (arg === '-v' || arg === '--verbose') {
-      options.verbose = true;
-    } else if (arg === '-l' || arg === '--list') {
-      options.list = true;
-    } else if (arg === '-t' || arg === '--testset') {
-      const value = args[++i] as TestSet;
-      if (!VALID_TESTSETS.includes(value)) {
-        console.error(`Error: Invalid test set '${value}'. Valid options: ${VALID_TESTSETS.join(', ')}`);
-        process.exit(2);
-      }
-      options.testset = value;
-    } else if (arg === '-T' || arg === '--tolerance') {
-      const value = parseFloat(args[++i]);
-      if (isNaN(value) || value < 0) {
-        console.error('Error: Tolerance must be a positive number');
-        process.exit(2);
-      }
-      options.tolerance = value;
-    }
-  }
-
-  return options;
 }
 
 /**
@@ -261,11 +238,6 @@ function compareResults(
  */
 async function main(): Promise<void> {
   const options = parseArgs();
-
-  if (options.help) {
-    showUsage();
-    process.exit(0);
-  }
 
   if (options.list) {
     listTestSets();
