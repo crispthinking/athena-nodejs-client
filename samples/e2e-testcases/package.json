@@ -1,0 +1,23 @@
+{
+  "name": "athena-e2e-testcases",
+  "version": "1.0.0",
+  "description": "End-to-end test case runner using Athena SDK with shared testcases",
+  "type": "module",
+  "main": "index.ts",
+  "scripts": {
+    "start": "npx tsx index.ts",
+    "dev": "npx tsx index.ts --help"
+  },
+  "dependencies": {
+    "@crispthinking/athena-classifier-sdk": "file:../../"
+  },
+  "devDependencies": {
+    "tsx": "^4.7.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": ["athena", "classification", "e2e", "testing", "validation"],
+  "author": "Crisp Thinking",
+  "license": "MIT"
+}
