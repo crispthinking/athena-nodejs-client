@@ -33,3 +33,11 @@ A TypeScript server for continuous image classification with hash computation. P
 
 - **Use Case**: Long-running classification service with hash computation
 - **Features**: Continuous processing, MD5/SHA1 hashes, graceful shutdown
+
+### [E2E Test Cases](./e2e-testcases/)
+**End-to-End Test Case Runner**
+
+Runs shared test cases from `athena-protobufs/testcases/` through the classification service and validates results against expected outputs.
+
+- **Use Case**: Integration testing and validation against known test cases
+- **Features**: Multiple test sets, tolerance-based comparison, detailed reporting
