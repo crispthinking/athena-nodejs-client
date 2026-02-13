@@ -4,6 +4,7 @@ import {
   ClassifierSdk,
   type ClassifyImageInput,
   ImageFormat,
+  parseAudience,
 } from '../../src';
 import fs from 'fs';
 import { randomUUID } from 'crypto';
@@ -18,11 +19,12 @@ describe('ClassifierSdk Functional Tests', () => {
       const sdk = new ClassifierSdk({
         deploymentId: process.env.VITE_ATHENA_DEPLOYMENT_ID,
         affiliate: process.env.VITE_ATHENA_AFFILIATE,
+        grpcAddress: process.env.VITE_ATHENA_GRPC_ADDRESS,
         authentication: {
           issuerUrl: process.env.VITE_OAUTH_ISSUER,
           clientId: process.env.VITE_ATHENA_CLIENT_ID,
           clientSecret: process.env.VITE_ATHENA_CLIENT_SECRET,
-          scope: 'manage:classify',
+          audience: parseAudience(process.env.VITE_ATHENA_AUDIENCE),
         },
       });
 
@@ -46,11 +48,12 @@ describe('ClassifierSdk Functional Tests', () => {
       const sdk = new ClassifierSdk({
         deploymentId: process.env.VITE_ATHENA_DEPLOYMENT_ID,
         affiliate: process.env.VITE_ATHENA_AFFILIATE,
+        grpcAddress: process.env.VITE_ATHENA_GRPC_ADDRESS,
         authentication: {
           issuerUrl: process.env.VITE_OAUTH_ISSUER,
           clientId: process.env.VITE_ATHENA_CLIENT_ID,
           clientSecret: process.env.VITE_ATHENA_CLIENT_SECRET,
-          scope: 'manage:classify',
+          audience: parseAudience(process.env.VITE_ATHENA_AUDIENCE),
         },
       });
 
@@ -60,7 +63,7 @@ describe('ClassifierSdk Functional Tests', () => {
       };
 
       const response = await sdk.classifySingle(input);
-      expect(response.classifications).toBe(true);
+      expect(Array.isArray(response.classifications)).toBe(true);
       expect(response.error).toBeNull();
     }, 10000);
   });
@@ -76,11 +79,12 @@ describe('ClassifierSdk Functional Tests', () => {
       const sdk = new ClassifierSdk({
         deploymentId: process.env.VITE_ATHENA_DEPLOYMENT_ID,
         affiliate: process.env.VITE_ATHENA_AFFILIATE,
+        grpcAddress: process.env.VITE_ATHENA_GRPC_ADDRESS,
         authentication: {
           issuerUrl: process.env.VITE_OAUTH_ISSUER,
           clientId: process.env.VITE_ATHENA_CLIENT_ID,
           clientSecret: process.env.VITE_ATHENA_CLIENT_SECRET,
-          scope: 'manage:classify',
+          audience: parseAudience(process.env.VITE_ATHENA_AUDIENCE),
         },
       });
 
@@ -172,11 +176,12 @@ describe('ClassifierSdk Functional Tests', () => {
       const sdk = new ClassifierSdk({
         deploymentId: process.env.VITE_ATHENA_DEPLOYMENT_ID,
         affiliate: process.env.VITE_ATHENA_AFFILIATE,
+        grpcAddress: process.env.VITE_ATHENA_GRPC_ADDRESS,
         authentication: {
           issuerUrl: process.env.VITE_OAUTH_ISSUER,
           clientId: process.env.VITE_ATHENA_CLIENT_ID,
           clientSecret: process.env.VITE_ATHENA_CLIENT_SECRET,
-          scope: 'manage:classify',
+          audience: parseAudience(process.env.VITE_ATHENA_AUDIENCE),
         },
       });
 
@@ -257,11 +262,12 @@ describe('ClassifierSdk Functional Tests', () => {
       const sdk = new ClassifierSdk({
         deploymentId: process.env.VITE_ATHENA_DEPLOYMENT_ID,
         affiliate: process.env.VITE_ATHENA_AFFILIATE,
+        grpcAddress: process.env.VITE_ATHENA_GRPC_ADDRESS,
         authentication: {
           issuerUrl: process.env.VITE_OAUTH_ISSUER,
           clientId: process.env.VITE_ATHENA_CLIENT_ID,
           clientSecret: process.env.VITE_ATHENA_CLIENT_SECRET,
-          scope: 'manage:classify',
+          audience: parseAudience(process.env.VITE_ATHENA_AUDIENCE),
         },
       });
 

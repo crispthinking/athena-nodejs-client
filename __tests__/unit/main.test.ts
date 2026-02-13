@@ -37,7 +37,6 @@ describe('ClassifierSdk', () => {
         issuerUrl: 'https://test-issuer.com',
         clientId: 'test-client-id',
         clientSecret: 'test-client-secret',
-        scope: 'manage:classify',
       },
     });
   });
@@ -57,7 +56,6 @@ describe('ClassifierSdk', () => {
           issuerUrl: 'https://test-issuer.com',
           clientId: 'test-client-id',
           clientSecret: 'test-client-secret',
-          scope: 'manage:classify',
         },
       });
 
@@ -74,7 +72,6 @@ describe('ClassifierSdk', () => {
           issuerUrl: 'https://test-issuer.com',
           clientId: 'test-client-id',
           clientSecret: 'test-client-secret',
-          scope: 'manage:classify',
         },
       });
 

@@ -65,7 +65,6 @@ describe('E2E Test Cases', () => {
         clientId: process.env.VITE_ATHENA_CLIENT_ID ?? '',
         clientSecret: process.env.VITE_ATHENA_CLIENT_SECRET ?? '',
         audience: parseAudience(process.env.VITE_ATHENA_AUDIENCE),
-        scope: 'manage:classify',
       },
     });
 
