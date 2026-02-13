@@ -391,3 +391,9 @@ export class ClassifierSdk extends (EventEmitter as new () => TypedEventEmitter<
 export * from './generated/athena/models.js';
 export { ClassifierServiceClient } from './generated/athena/athena.js';
 export * from './hashing.js';
+export {
+  type AuthenticationOptions,
+  type AthenaAudience,
+  VALID_AUDIENCES,
+  parseAudience,
+} from './authenticationManager.js';

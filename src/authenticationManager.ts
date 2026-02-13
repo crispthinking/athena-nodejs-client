@@ -9,6 +9,30 @@ import * as grpc from '@grpc/grpc-js';
 import { jwtDecode, type JwtPayload } from 'jwt-decode';
 
 /**
+ * Valid audience values for the Athena SDK.
+ */
+export type AthenaAudience = 'crisp-athena-live' | 'crisp-athena-dev' | 'crisp-athena-qa';
+
+/**
+ * List of valid audience values.
+ */
+export const VALID_AUDIENCES: readonly AthenaAudience[] = ['crisp-athena-live', 'crisp-athena-dev', 'crisp-athena-qa'] as const;
+
+/**
+ * Type guard to validate and parse an audience string.
+ * Returns the validated audience value or a default if invalid/undefined.
+ * @param value The string value to validate
+ * @param defaultValue The default audience if value is invalid (default: 'crisp-athena-live')
+ * @returns A valid AthenaAudience value
+ */
+export function parseAudience(value: string | undefined, defaultValue: AthenaAudience = 'crisp-athena-live'): AthenaAudience {
+  if (value && VALID_AUDIENCES.includes(value as AthenaAudience)) {
+    return value as AthenaAudience;
+  }
+  return defaultValue;
+}
+
+/**
  * Options for configuring the AuthenticationManager.
  */
 export type AuthenticationOptions = {
@@ -23,7 +47,7 @@ export type AuthenticationOptions = {
   /** OAuth scope to request. */
   scope?: string;
   /** OAuth audience to request. */
-  audience?: 'crisp-athena-live' | 'crisp-athena-dev' | 'crisp-athena-qa';
+  audience?: AthenaAudience;
 };
 
 /**

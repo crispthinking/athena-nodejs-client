@@ -8,7 +8,7 @@
  * against expected outputs.
  */
 
-import { ClassifierSdk, ImageFormat } from '@crispthinking/athena-classifier-sdk';
+import { ClassifierSdk, ImageFormat, parseAudience } from '@crispthinking/athena-classifier-sdk';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -26,7 +26,7 @@ const CONFIG = {
   affiliate: process.env.ATHENA_AFFILIATE,
   issuerUrl: process.env.ATHENA_ISSUER_URL || 'https://crispthinking.auth0.com/',
   grpcAddress: process.env.ATHENA_GRPC_ADDRESS || 'trust-messages-global.crispthinking.com:443',
-  audience: process.env.ATHENA_AUDIENCE || 'crisp-athena-live'
+  audience: parseAudience(process.env.ATHENA_AUDIENCE)
 };
 
 /**

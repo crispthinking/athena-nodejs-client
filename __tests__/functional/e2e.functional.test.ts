@@ -1,5 +1,5 @@
 import { describe, it, beforeAll } from 'vitest';
-import { ClassifierSdk, ImageFormat } from '../../src';
+import { ClassifierSdk, ImageFormat, parseAudience } from '../../src';
 import fs from 'fs';
 import path from 'path';
 
@@ -64,7 +64,7 @@ describe('E2E Test Cases', () => {
           process.env.VITE_OAUTH_ISSUER ?? 'https://crispthinking.auth0.com/',
         clientId: process.env.VITE_ATHENA_CLIENT_ID ?? '',
         clientSecret: process.env.VITE_ATHENA_CLIENT_SECRET ?? '',
-        audience: (process.env.VITE_ATHENA_AUDIENCE as 'crisp-athena-live' | 'crisp-athena-dev' | 'crisp-athena-qa') ?? 'crisp-athena-live',
+        audience: parseAudience(process.env.VITE_ATHENA_AUDIENCE),
         scope: 'manage:classify',
       },
     });

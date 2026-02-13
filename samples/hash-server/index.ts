@@ -1,4 +1,4 @@
-import { ClassifierSdk, HashType, ImageFormat, RequestEncoding, type ClassifyImageInput } from '@crispthinking/athena-classifier-sdk';
+import { ClassifierSdk, HashType, ImageFormat, RequestEncoding, parseAudience, type ClassifyImageInput } from '@crispthinking/athena-classifier-sdk';
 import express from 'express';
 import type { Request, Response, NextFunction } from 'express';
 import multer from 'multer';
@@ -147,7 +147,7 @@ const sdk = new ClassifierSdk({
     clientId: CONFIG.clientId!,
     clientSecret: CONFIG.clientSecret!,
     issuerUrl: CONFIG.issuerUrl!,
-    audience: CONFIG.audience! as 'crisp-athena-live' | 'crisp-athena-dev' | 'crisp-athena-qa'
+    audience: parseAudience(CONFIG.audience)
   },
   grpcAddress: CONFIG.grpcAddress!,
   affiliate: CONFIG.affiliate!,
