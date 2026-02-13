@@ -11,12 +11,19 @@ import { jwtDecode, type JwtPayload } from 'jwt-decode';
 /**
  * Valid audience values for the Athena SDK.
  */
-export type AthenaAudience = 'crisp-athena-live' | 'crisp-athena-dev' | 'crisp-athena-qa';
+export type AthenaAudience =
+  | 'crisp-athena-live'
+  | 'crisp-athena-dev'
+  | 'crisp-athena-qa';
 
 /**
  * List of valid audience values.
  */
-export const VALID_AUDIENCES: readonly AthenaAudience[] = ['crisp-athena-live', 'crisp-athena-dev', 'crisp-athena-qa'] as const;
+export const VALID_AUDIENCES: readonly AthenaAudience[] = [
+  'crisp-athena-live',
+  'crisp-athena-dev',
+  'crisp-athena-qa',
+] as const;
 
 /**
  * Type guard to validate and parse an audience string.
@@ -25,7 +32,10 @@ export const VALID_AUDIENCES: readonly AthenaAudience[] = ['crisp-athena-live', 
  * @param defaultValue The default audience if value is invalid (default: 'crisp-athena-live')
  * @returns A valid AthenaAudience value
  */
-export function parseAudience(value: string | undefined, defaultValue: AthenaAudience = 'crisp-athena-live'): AthenaAudience {
+export function parseAudience(
+  value: string | undefined,
+  defaultValue: AthenaAudience = 'crisp-athena-live',
+): AthenaAudience {
   if (value && VALID_AUDIENCES.includes(value as AthenaAudience)) {
     return value as AthenaAudience;
   }
