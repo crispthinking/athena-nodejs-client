@@ -5,7 +5,7 @@ import {
   type ClassifyImageInput,
   ImageFormat,
   parseAudience,
-} from '../../src';
+} from '../../src/index.js';
 import fs from 'fs';
 import { randomUUID } from 'crypto';
 

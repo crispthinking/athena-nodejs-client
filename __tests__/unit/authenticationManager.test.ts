@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
   AuthenticationManager,
   type AuthenticationOptions,
-} from '../../src/authenticationManager';
+} from '../../src/authenticationManager.js';
 import * as openidClient from 'openid-client';
 import * as jwtDecodeModule from 'jwt-decode';
 import * as grpc from '@grpc/grpc-js';
