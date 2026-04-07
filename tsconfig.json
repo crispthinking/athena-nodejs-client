@@ -1,8 +1,8 @@
 {
   "compilerOptions": {
     "target": "es2022",
-    "module": "preserve",
-    "moduleResolution": "bundler",
+    "module": "node16",
+    "moduleResolution": "node16",
     "rootDir": ".",
     "outDir": "dist",
     "allowSyntheticDefaultImports": true,

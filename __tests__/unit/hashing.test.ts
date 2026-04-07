@@ -1,5 +1,5 @@
 import { describe, it,} from 'vitest';
-import { computeHashesFromStream, HashType, ImageFormat, RequestEncoding } from '../../src';
+import { computeHashesFromStream, HashType, ImageFormat, RequestEncoding } from '../../src/index.js';
 import fs from 'fs';
 
 describe('hashing', () => {
