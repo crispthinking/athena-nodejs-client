@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { ClassifierSdk, ImageFormat } from '../../src';
+import { ClassifierSdk, ImageFormat } from '../../src/index.js';
 
 // Mock the dependencies
 vi.mock('@grpc/grpc-js', () => ({

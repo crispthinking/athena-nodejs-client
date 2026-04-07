@@ -1,5 +1,5 @@
 import { describe, it, beforeAll } from 'vitest';
-import { ClassifierSdk, ImageFormat, parseAudience } from '../../src';
+import { ClassifierSdk, ImageFormat, parseAudience } from '../../src/index.js';
 import fs from 'fs';
 import path from 'path';
 

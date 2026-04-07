@@ -4,7 +4,7 @@ import {
   ClassifierSdk,
   type ClassifyImageInput,
   ImageFormat,
-} from '../../src';
+} from '../../src/index.js';
 import fs from 'fs';
 import { randomUUID } from 'crypto';
 
