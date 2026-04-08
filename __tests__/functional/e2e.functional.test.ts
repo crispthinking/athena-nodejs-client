@@ -119,7 +119,7 @@ describe('E2E Test Cases', () => {
           format: getImageFormat(filename),
         });
 
-        expect(response.error, `Classification error for ${filename}`).toBeNull();
+        expect(response.error, `Classification error for ${filename}`).toBeUndefined();
 
         // Build actual weights map
         const actualWeights = new Map<string, number>();

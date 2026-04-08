@@ -64,7 +64,7 @@ describe('ClassifierSdk Functional Tests', () => {
 
       const response = await sdk.classifySingle(input);
       expect(Array.isArray(response.classifications)).toBe(true);
-      expect(response.error).toBeNull();
+      expect(response.error).toBeUndefined();
     }, 10000);
   });
 

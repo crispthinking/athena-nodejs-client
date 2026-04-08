@@ -234,6 +234,46 @@ function compareResults(
 }
 
 /**
+ * Format structured SDK and runtime errors for readable CLI output.
+ */
+function formatError(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  if (typeof error === 'string') {
+    return error;
+  }
+
+  if (error && typeof error === 'object') {
+    const details = error as {
+      code?: unknown;
+      message?: unknown;
+      details?: unknown;
+    };
+
+    const parts = [details.message, details.details]
+      .filter((value): value is string => typeof value === 'string' && value.length > 0);
+
+    if (typeof details.code === 'number' || typeof details.code === 'string') {
+      parts.unshift(`code ${details.code}`);
+    }
+
+    if (parts.length > 0) {
+      return parts.join(' - ');
+    }
+
+    try {
+      return JSON.stringify(error);
+    } catch {
+      return String(error);
+    }
+  }
+
+  return String(error);
+}
+
+/**
  * Main execution
  */
 async function main(): Promise<void> {
@@ -293,7 +333,9 @@ async function main(): Promise<void> {
       });
 
       if (response.error) {
-        console.error(`  ✗ ${filename} - Classification error: ${response.error}`);
+        console.error(
+          `  ✗ ${filename} - Classification error: ${formatError(response.error)}`,
+        );
         results.push({ filename, passed: false, differences: [] });
         continue;
       }
@@ -323,7 +365,7 @@ async function main(): Promise<void> {
         }
       }
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
+      const message = formatError(error);
       console.error(`  ✗ ${filename} - Error: ${message}`);
       results.push({ filename, passed: false, differences: [] });
     }
