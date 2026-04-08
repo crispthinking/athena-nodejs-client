@@ -21,7 +21,6 @@ import {
   AuthenticationManager,
 } from './authenticationManager.js';
 import { computeHashesFromStream } from './hashing.js';
-import type TypedEventEmitter from 'typed-emitter';
 
 /**
  * Options for the classifyImage method.
@@ -90,7 +89,7 @@ export const defaultGrpcAddress = 'trust-messages-global.crispthinking.com:443';
  * @fires ClassifierSdk#close
  * @fires ClassifierSdk#data
  */
-export class ClassifierSdk extends (EventEmitter as new () => TypedEventEmitter<ClassifierEvents>) {
+export class ClassifierSdk extends EventEmitter {
   private grpcAddress: string;
   private client: ClassifierServiceClient;
   private classifierGrpcCall: grpc.ClientDuplexStream<
