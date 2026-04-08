@@ -14,7 +14,8 @@ describe('ClassifierSdk Functional Tests', () => {
     it('should listDeployments and return responses (smoke test)', async ({
       expect,
     }) => {
-      // This is a smoke test. You must have a running gRPC server at localhost:50051 for this to pass.
+      // This is a smoke test. The gRPC server address is taken from VITE_ATHENA_GRPC_ADDRESS,
+      // falling back to the SDK default if the variable is not set.
       // You may want to mock the gRPC client for true unit testing.
       const sdk = new ClassifierSdk({
         deploymentId: process.env.VITE_ATHENA_DEPLOYMENT_ID,
@@ -73,7 +74,8 @@ describe('ClassifierSdk Functional Tests', () => {
       expect,
       annotate,
     }) => {
-      // This is a smoke test. You must have a running gRPC server at localhost:50051 for this to pass.
+      // This is a smoke test. The gRPC server address is taken from VITE_ATHENA_GRPC_ADDRESS,
+      // falling back to the SDK default if the variable is not set.
       // You may want to mock the gRPC client for true unit testing.
       const imagePath = __dirname + '/448x448.jpg';
       const sdk = new ClassifierSdk({
@@ -256,7 +258,8 @@ describe('ClassifierSdk Functional Tests', () => {
       expect,
       annotate,
     }) => {
-      // This is a smoke test. You must have a running gRPC server at localhost:50051 for this to pass.
+      // This is a smoke test. The gRPC server address is taken from VITE_ATHENA_GRPC_ADDRESS,
+      // falling back to the SDK default if the variable is not set.
       // You may want to mock the gRPC client for true unit testing.
       const imagePath = __dirname + '/448x448.jpg';
       const sdk = new ClassifierSdk({
