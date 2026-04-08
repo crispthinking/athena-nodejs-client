@@ -385,6 +385,13 @@ export class ClassifierSdk extends EventEmitter {
   ): this {
     return super.off(event, listener);
   }
+
+  public override emit<U extends keyof ClassifierEvents>(
+    event: U,
+    ...args: Parameters<ClassifierEvents[U]>
+  ): boolean {
+    return super.emit(event, ...args);
+  }
 }
 
 export * from './generated/athena/models.js';
