@@ -238,6 +238,21 @@ function compareResults(
  */
 function formatError(error: unknown): string {
   if (error instanceof Error) {
+    const details = error as Error & {
+      code?: unknown;
+      details?: unknown;
+    };
+
+    const parts = [details.message, details.details]
+      .filter((value): value is string => typeof value === 'string' && value.length > 0);
+
+    if (typeof details.code === 'number' || typeof details.code === 'string') {
+      parts.unshift(`code ${details.code}`);
+    }
+
+    if (parts.length > 1 || (parts.length === 1 && parts[0] !== error.message)) {
+      return parts.join(' - ');
+    }
     return error.message;
   }
 
