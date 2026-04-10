@@ -4,6 +4,7 @@ import {
   ClassifierSdk,
   type ClassifyImageInput,
   ImageFormat,
+  parseAudience,
 } from '../../src/index.js';
 import fs from 'fs';
 import { randomUUID } from 'crypto';
@@ -13,16 +14,18 @@ describe('ClassifierSdk Functional Tests', () => {
     it('should listDeployments and return responses (smoke test)', async ({
       expect,
     }) => {
-      // This is a smoke test. You must have a running gRPC server at localhost:50051 for this to pass.
+      // This is a smoke test. The gRPC server address is taken from VITE_ATHENA_GRPC_ADDRESS,
+      // falling back to the SDK default if the variable is not set.
       // You may want to mock the gRPC client for true unit testing.
       const sdk = new ClassifierSdk({
         deploymentId: process.env.VITE_ATHENA_DEPLOYMENT_ID,
         affiliate: process.env.VITE_ATHENA_AFFILIATE,
+        grpcAddress: process.env.VITE_ATHENA_GRPC_ADDRESS,
         authentication: {
           issuerUrl: process.env.VITE_OAUTH_ISSUER,
           clientId: process.env.VITE_ATHENA_CLIENT_ID,
           clientSecret: process.env.VITE_ATHENA_CLIENT_SECRET,
-          scope: 'manage:classify',
+          audience: parseAudience(process.env.VITE_ATHENA_AUDIENCE),
         },
       });
 
@@ -46,11 +49,12 @@ describe('ClassifierSdk Functional Tests', () => {
       const sdk = new ClassifierSdk({
         deploymentId: process.env.VITE_ATHENA_DEPLOYMENT_ID,
         affiliate: process.env.VITE_ATHENA_AFFILIATE,
+        grpcAddress: process.env.VITE_ATHENA_GRPC_ADDRESS,
         authentication: {
           issuerUrl: process.env.VITE_OAUTH_ISSUER,
           clientId: process.env.VITE_ATHENA_CLIENT_ID,
           clientSecret: process.env.VITE_ATHENA_CLIENT_SECRET,
-          scope: 'manage:classify',
+          audience: parseAudience(process.env.VITE_ATHENA_AUDIENCE),
         },
       });
 
@@ -60,8 +64,8 @@ describe('ClassifierSdk Functional Tests', () => {
       };
 
       const response = await sdk.classifySingle(input);
-      expect(response.classifications).toBe(true);
-      expect(response.error).toBeNull();
+      expect(Array.isArray(response.classifications)).toBe(true);
+      expect(response.error).toBeUndefined();
     }, 10000);
   });
 
@@ -70,17 +74,19 @@ describe('ClassifierSdk Functional Tests', () => {
       expect,
       annotate,
     }) => {
-      // This is a smoke test. You must have a running gRPC server at localhost:50051 for this to pass.
+      // This is a smoke test. The gRPC server address is taken from VITE_ATHENA_GRPC_ADDRESS,
+      // falling back to the SDK default if the variable is not set.
       // You may want to mock the gRPC client for true unit testing.
       const imagePath = __dirname + '/448x448.jpg';
       const sdk = new ClassifierSdk({
         deploymentId: process.env.VITE_ATHENA_DEPLOYMENT_ID,
         affiliate: process.env.VITE_ATHENA_AFFILIATE,
+        grpcAddress: process.env.VITE_ATHENA_GRPC_ADDRESS,
         authentication: {
           issuerUrl: process.env.VITE_OAUTH_ISSUER,
           clientId: process.env.VITE_ATHENA_CLIENT_ID,
           clientSecret: process.env.VITE_ATHENA_CLIENT_SECRET,
-          scope: 'manage:classify',
+          audience: parseAudience(process.env.VITE_ATHENA_AUDIENCE),
         },
       });
 
@@ -172,11 +178,12 @@ describe('ClassifierSdk Functional Tests', () => {
       const sdk = new ClassifierSdk({
         deploymentId: process.env.VITE_ATHENA_DEPLOYMENT_ID,
         affiliate: process.env.VITE_ATHENA_AFFILIATE,
+        grpcAddress: process.env.VITE_ATHENA_GRPC_ADDRESS,
         authentication: {
           issuerUrl: process.env.VITE_OAUTH_ISSUER,
           clientId: process.env.VITE_ATHENA_CLIENT_ID,
           clientSecret: process.env.VITE_ATHENA_CLIENT_SECRET,
-          scope: 'manage:classify',
+          audience: parseAudience(process.env.VITE_ATHENA_AUDIENCE),
         },
       });
 
@@ -251,17 +258,19 @@ describe('ClassifierSdk Functional Tests', () => {
       expect,
       annotate,
     }) => {
-      // This is a smoke test. You must have a running gRPC server at localhost:50051 for this to pass.
+      // This is a smoke test. The gRPC server address is taken from VITE_ATHENA_GRPC_ADDRESS,
+      // falling back to the SDK default if the variable is not set.
       // You may want to mock the gRPC client for true unit testing.
       const imagePath = __dirname + '/448x448.jpg';
       const sdk = new ClassifierSdk({
         deploymentId: process.env.VITE_ATHENA_DEPLOYMENT_ID,
         affiliate: process.env.VITE_ATHENA_AFFILIATE,
+        grpcAddress: process.env.VITE_ATHENA_GRPC_ADDRESS,
         authentication: {
           issuerUrl: process.env.VITE_OAUTH_ISSUER,
           clientId: process.env.VITE_ATHENA_CLIENT_ID,
           clientSecret: process.env.VITE_ATHENA_CLIENT_SECRET,
-          scope: 'manage:classify',
+          audience: parseAudience(process.env.VITE_ATHENA_AUDIENCE),
         },
       });
 
