@@ -22,7 +22,6 @@ const options: AuthenticationOptions = {
   clientId: 'client-id',
   clientSecret: 'client-secret',
   issuerUrl: 'https://issuer.example.com',
-  scope: 'manage:classify',
 };
 
 describe('AuthenticationManager', () => {
@@ -46,7 +45,7 @@ describe('AuthenticationManager', () => {
     );
     expect(openidClient.clientCredentialsGrant).toHaveBeenCalledWith(
       mockDiscovery,
-      { audience: 'crisp-athena-live', scope: options.scope },
+      { audience: 'crisp-athena-live' },
     );
   });
 

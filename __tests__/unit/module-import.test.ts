@@ -63,7 +63,6 @@ describe('Module Import Tests', () => {
           issuerUrl: 'https://test-issuer.com',
           clientId: 'test-client-id',
           clientSecret: 'test-client-secret',
-          scope: 'manage:classify',
         },
       });
 
