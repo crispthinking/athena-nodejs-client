@@ -32,7 +32,7 @@
     "@vitest/eslint-plugin": "~1.6",
     "eslint": "^10.2.0",
     "eslint-config-prettier": "~10.1",
-    "globals": "~17.4",
+    "globals": "~17.5",
     "grpc_tools_node_protoc": "^1.0.0",
     "grpc-tools": "^1.13.0",
     "prettier": "~3.8",
