@@ -58,7 +58,7 @@ describe('E2E Test Cases', () => {
       affiliate: process.env.VITE_ATHENA_AFFILIATE ?? '',
       grpcAddress:
         process.env.VITE_ATHENA_GRPC_ADDRESS ??
-        'trust-messages-global.crispthinking.com:443',
+        'api.athena-risk-intelligence.com:443',
       authentication: {
         issuerUrl:
           process.env.VITE_OAUTH_ISSUER ?? 'https://crispthinking.auth0.com/',

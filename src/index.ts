@@ -79,7 +79,7 @@ export type ClassifierEvents = {
   open: () => void;
 };
 
-export const defaultGrpcAddress = 'trust-messages-global.crispthinking.com:443';
+export const defaultGrpcAddress = 'api.athena-risk-intelligence.com:443';
 
 /**
  * SDK for interacting with the Athena classification service via gRPC.
