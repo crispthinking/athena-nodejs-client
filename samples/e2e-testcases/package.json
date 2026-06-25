@@ -13,7 +13,7 @@
     "commander": "^14.0.3"
   },
   "devDependencies": {
-    "tsx": "^4.7.0"
+    "tsx": "^4.22.4"
   },
   "engines": {
     "node": ">=18.0.0"
