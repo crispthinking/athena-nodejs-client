@@ -35,7 +35,7 @@
     "globals": "~17.7",
     "grpc_tools_node_protoc": "^1.0.0",
     "grpc-tools": "^1.13.0",
-    "prettier": "~3.8",
+    "prettier": "~3.9",
     "rimraf": "~6.1",
     "ts-api-utils": "~2.5",
     "ts-proto": "^2.7.7",
