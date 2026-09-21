@@ -774,20 +774,22 @@ async function main(): Promise<void> {
   const control = summaries['listDeployments'] as Summary;
   if (!Number.isNaN(classify.p50) && !Number.isNaN(control.p50)) {
     heading('Attribution');
+    console.log(`  round trip (control call)      p50 ${ms(control.p50)}`);
     console.log(
-      `  Payload cost over the control call: p50 ${ms(classify.p50 - control.p50)}, ` +
-        `p90 ${ms(classify.p90 - control.p90)}`,
+      `  classifySingle minus control   p50 ${ms(classify.p50 - control.p50)}` +
+        ` = server processing + payload transfer`,
     );
     console.log(
-      `  End-to-end as a consumer sees it:   p50 ${ms((summaries['prepare'] as Summary).p50 + classify.p50)}, ` +
-        `p90 ${ms((summaries['prepare'] as Summary).p90 + classify.p90)}`,
+      `  end-to-end incl. preparation   p50 ${ms((summaries['prepare'] as Summary).p50 + classify.p50)}`,
+    );
+    console.log('');
+    console.log(
+      '  Subtract athena.classify_single.duration from "classifySingle minus',
     );
     console.log(
-      '  Compare classifySingle against athena.classify_single.duration in New Relic;',
+      '  control" to isolate payload transfer. Percentiles are not additive, so',
     );
-    console.log(
-      '  the difference is time the service cannot see (upload, queueing, handshake).',
-    );
+    console.log('  treat these as indicative and compare p50 to p50.');
   }
 
   heading('Stability');

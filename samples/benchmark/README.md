@@ -131,9 +131,16 @@ two directions at once:
   A near-empty round trip.
 - `classifySingle` — the same channel carrying the real request body.
 
-The difference between them is what it costs to *ship the payload*, separately
-from the base cost of a round trip. If the control call is fast and
-`classifySingle` is slow, the time is going into upload, not into the service.
+The control call is a round trip with no meaningful server work, so it is a
+direct read on network round-trip time. `classifySingle` minus the control is
+**server processing plus payload transfer** — not payload alone. To isolate
+payload transfer, subtract `athena.classify_single.duration` for the same
+window as well. Percentiles are not additive, so compare p50 to p50 and treat
+the result as indicative.
+
+On a well-connected client the payload term is close to zero: 588 KiB costs
+single-digit milliseconds, which is why removing 218 KiB with Brotli saved
+~9 ms. It only becomes significant on a slow or contended uplink.
 
 `prepare` is local CPU only — no network. It is part of what a consumer
 measures if they time around the SDK's `classifySingle`, and it scales with
