@@ -22,10 +22,10 @@
  */
 
 import { createRequire } from 'module';
-import { dirname, resolve } from 'path';
+import { dirname, extname, resolve } from 'path';
 import { fileURLToPath } from 'url';
 import { performance } from 'perf_hooks';
-import { readFile, writeFile } from 'fs/promises';
+import { readdir, readFile, writeFile } from 'fs/promises';
 import { hostname } from 'os';
 
 import { Command, Option } from 'commander';
@@ -65,6 +65,7 @@ interface CliOptions {
   envFile?: string;
   label: string;
   image: string;
+  imageDir?: string;
   iterations: number;
   concurrency: number;
   warmup: number;
@@ -165,6 +166,43 @@ function buildMetadata(authHeader: string): grpc.Metadata {
   metadata.set('x-client-language', 'nodejs');
   metadata.set('Authorization', authHeader);
   return metadata;
+}
+
+const IMAGE_EXTENSIONS = new Set([
+  '.jpg',
+  '.jpeg',
+  '.png',
+  '.gif',
+  '.bmp',
+  '.webp',
+]);
+
+/**
+ * Collects image files from a directory tree, sorted for a stable run order.
+ *
+ * @throws If the directory contains no recognised image files.
+ */
+async function collectImages(dir: string): Promise<string[]> {
+  const found: string[] = [];
+
+  const walk = async (current: string): Promise<void> => {
+    for (const entry of await readdir(current, { withFileTypes: true })) {
+      const full = resolve(current, entry.name);
+      if (entry.isDirectory()) {
+        await walk(full);
+      } else if (IMAGE_EXTENSIONS.has(extname(entry.name).toLowerCase())) {
+        found.push(full);
+      }
+    }
+  };
+
+  await walk(resolve(dir));
+
+  if (found.length === 0) {
+    throw new Error(`No image files found under ${dir}`);
+  }
+
+  return found.sort();
 }
 
 /**
@@ -377,6 +415,11 @@ async function main(): Promise<void> {
       'unlabelled',
     )
     .option('-i, --image <path>', 'image to classify', DEFAULT_IMAGE)
+    .option(
+      '-d, --image-dir <path>',
+      'directory of images to cycle through instead of a single image ' +
+        '(searched recursively); gives a realistic payload mix',
+    )
     .option('-n, --iterations <count>', 'classifySingle calls to make', '100')
     .option('-c, --concurrency <count>', 'calls in flight at once', '1')
     .option(
@@ -409,6 +452,7 @@ async function main(): Promise<void> {
     envFile: raw.envFile as string | undefined,
     label: raw.label as string,
     image: raw.image as string,
+    imageDir: raw.imageDir as string | undefined,
     iterations: Number.parseInt(raw.iterations as string, 10),
     concurrency: Number.parseInt(raw.concurrency as string, 10),
     warmup: Number.parseInt(raw.warmup as string, 10),
@@ -442,7 +486,11 @@ async function main(): Promise<void> {
     console.log(`  audience      ${config.audience}`);
     console.log(`  affiliate     ${config.affiliate}`);
     console.log(`  issuer        ${config.issuerUrl}`);
-    console.log(`  image         ${options.image}`);
+    console.log(
+      options.imageDir === undefined
+        ? `  image         ${options.image}`
+        : `  images        ${options.imageDir}`,
+    );
     console.log(
       `  encoding      ${options.encoding}${options.resize ? ', resized to 448x448' : ', not resized'}`,
     );
@@ -461,21 +509,47 @@ async function main(): Promise<void> {
   const metadata = buildMetadata(auth.header);
 
   // ---- prepare -----------------------------------------------------------
-  const image = await readFile(options.image);
-  const prepareSamples: number[] = [];
-  let input: ClassificationInput | undefined;
+  // Prepare every image once up front and cycle through the results during the
+  // RPC phase. That keeps local CPU out of the measured call latency while
+  // still putting a realistic mix of payloads on the wire: after the resize to
+  // 448x448 raw BGR every uncompressed request is the same size, but how well
+  // each one compresses depends entirely on the picture.
+  const imagePaths =
+    options.imageDir === undefined
+      ? [resolve(options.image)]
+      : await collectImages(options.imageDir);
 
-  for (let i = 0; i < Math.max(options.connectSamples, 1); i++) {
+  const prepareSamples: number[] = [];
+  const inputs: ClassificationInput[] = [];
+
+  for (const path of imagePaths) {
     const prepared = await prepareInput(
-      image,
+      await readFile(path),
       config,
       encoding,
       options.resize,
     );
     prepareSamples.push(prepared.elapsedMs);
-    input ??= prepared.input;
+    inputs.push(prepared.input);
   }
-  const payloadBytes = input?.data.length ?? 0;
+
+  // One image gives one prepare sample, which says nothing about spread; take
+  // a few more. A corpus already has one per image.
+  if (imagePaths.length === 1) {
+    const only = await readFile(imagePaths[0] as string);
+    for (let i = 1; i < Math.max(options.connectSamples, 1); i++) {
+      const extra = await prepareInput(only, config, encoding, options.resize);
+      prepareSamples.push(extra.elapsedMs);
+    }
+  }
+
+  const payload = summarise(inputs.map((candidate) => candidate.data.length));
+
+  /** Round-robins the prepared inputs, with a fresh correlation id per call. */
+  const nextInput = (index: number): ClassificationInput => ({
+    ...(inputs[index % inputs.length] as ClassificationInput),
+    correlationId: crypto.randomUUID(),
+  });
 
   // ---- channel -----------------------------------------------------------
   const channelOptions: Record<string, number> = {};
@@ -504,15 +578,7 @@ async function main(): Promise<void> {
   // settings exchange) out of the measured window.
   for (let i = 0; i < options.warmup; i++) {
     try {
-      await classifySingle(
-        client,
-        {
-          ...(input as ClassificationInput),
-          correlationId: crypto.randomUUID(),
-        },
-        metadata,
-        options.timeout,
-      );
+      await classifySingle(client, nextInput(i), metadata, options.timeout);
     } catch (error) {
       recordError(`warmup:${errorCodeName(error)}`);
     }
@@ -541,15 +607,12 @@ async function main(): Promise<void> {
   const callOutcomes = await runPool<CallOutcome>(
     options.iterations,
     options.concurrency,
-    async () => {
+    async (index) => {
       const start = performance.now();
       try {
         await classifySingle(
           client,
-          {
-            ...(input as ClassificationInput),
-            correlationId: crypto.randomUUID(),
-          },
+          nextInput(index),
           metadata,
           options.timeout,
         );
@@ -577,7 +640,7 @@ async function main(): Promise<void> {
       streamResult = await runStreamPhase(
         client,
         metadata,
-        input as ClassificationInput,
+        nextInput(0),
         deploymentId,
         options.streamDuration,
       );
@@ -636,9 +699,15 @@ async function main(): Promise<void> {
       encoding: options.encoding,
       resize: options.resize,
       keepaliveMs: options.keepaliveMs ?? null,
-      image: options.image,
+      image: options.imageDir ?? options.image,
+      imageCount: imagePaths.length,
     },
-    payloadBytes,
+    payloadBytes: {
+      images: payload.count,
+      min: payload.min,
+      p50: payload.p50,
+      max: payload.max,
+    },
     transportDetails: transport.details ?? null,
     transportFailures: transport.failures,
     auth: { discoveryMs: auth.discoveryMs, tokenMs: auth.tokenMs },
@@ -671,7 +740,11 @@ async function main(): Promise<void> {
   if (transport.failures.length > 0) {
     console.log(`  failures      ${transport.failures.length}`);
   }
-  console.log(`  payload       ${bytes(payloadBytes)} per request`);
+  console.log(
+    payload.min === payload.max
+      ? `  payload       ${bytes(payload.p50)} per request (${payload.count} image(s))`
+      : `  payload       ${bytes(payload.p50)} p50, ${bytes(payload.min)}–${bytes(payload.max)} over ${payload.count} images`,
+  );
   console.log(
     `  auth          discovery ${ms(auth.discoveryMs)}, token ${ms(auth.tokenMs)} (one-off)`,
   );

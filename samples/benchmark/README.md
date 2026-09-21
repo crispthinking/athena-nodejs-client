@@ -68,7 +68,11 @@ npm start -- --env-file ../../.env --label staging-before
 npm start -- --env-file ../../.env --label staging-after \
   --iterations 500 --concurrency 8 --json ./staging-after.json
 
-# Does compression change the picture? (uncompressed 448x448 BGR is ~590 KiB)
+# Use the shared test corpus rather than one image — see "Choosing images"
+npm start -- --env-file ../../.env --label live-corpus \
+  --image-dir ../../athena-protobufs/testcases/benign_model --iterations 96
+
+# Does compression change the picture? (uncompressed 448x448 BGR is always 588 KiB)
 npm start -- --env-file ../../.env --encoding brotli --label staging-brotli
 
 # A/B a keepalive setting on the channel
@@ -85,6 +89,7 @@ npm start -- --env-file ../../.env --stream --stream-duration 120000
 | `--env-file <path>` | — | Loaded before config is read |
 | `--label <name>` | `unlabelled` | Recorded in the JSON, for diffing runs |
 | `--image <path>` | `../hash-server/448x448.jpg` | Any format when resizing |
+| `--image-dir <path>` | — | Directory of images, searched recursively; cycled through per call |
 | `--iterations <n>` | `100` | Measured `classifySingle` calls |
 | `--concurrency <n>` | `1` | Calls in flight at once |
 | `--warmup <n>` | `5` | Unmeasured calls first |
@@ -95,6 +100,28 @@ npm start -- --env-file ../../.env --stream --stream-duration 120000
 | `--timeout <ms>` | `30000` | Per-call deadline |
 | `--stream` | off | Also exercise the streaming path |
 | `--json <path>` | — | Write the full result |
+
+## Choosing images
+
+**Use `--image-dir` with the shared corpus for anything you intend to act on:**
+
+```
+--image-dir ../../athena-protobufs/testcases/benign_model
+```
+
+48 real photographs, all benign. A single synthetic image will mislead you in
+two directions at once:
+
+- **Compression.** Every uncompressed request is 588 KiB regardless of the
+  source, because the SDK resizes to 448x448 raw BGR first. How far Brotli gets
+  from there depends entirely on the picture. A flat synthetic image compresses
+  to ~2.5 KiB (99.6%); real photographs only reach ~370 KiB (37%). Measure
+  compression on a synthetic image and you will conclude it is free when it is
+  not.
+- **Preparation cost.** Decode-and-resize scales with the *source* image, not
+  the output. A small pre-sized image prepares in ~7 ms; a full-resolution
+  photograph takes ~590 ms. That cost lands on the caller's CPU, and it is the
+  single largest term in what a consumer measures.
 
 ## Reading the output
 
