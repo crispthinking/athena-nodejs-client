@@ -171,6 +171,34 @@ Change one variable at a time — endpoint, encoding, keepalive, concurrency —
 and keep the client host fixed, since `prepare` and the handshake are both
 sensitive to where the harness runs.
 
+## Comparing SDK versions
+
+The harness imports the SDK by package name, so pointing it at a different
+version means installing that version somewhere and running the same sources
+against it:
+
+```bash
+mkdir /tmp/sdk-old && cd /tmp/sdk-old
+npm init -y && npm pkg set type=module
+npm install @crispthinking/athena-classifier-sdk@1.0.1 commander openid-client
+npm install -D tsx
+cp <repo>/samples/benchmark/{index,config,stats,transport}.ts .
+
+# Pin the endpoint explicitly: older versions default to a different address,
+# and the point of the comparison is to hold the endpoint constant.
+ATHENA_GRPC_ADDRESS=api.athena-risk-intelligence.com:443 \
+  npx tsx index.ts --env-file ./live.env --label sdk-1.0.1 \
+  --image-dir <repo>/athena-protobufs/testcases/benign_model --iterations 96
+```
+
+Check that both the harness and the SDK resolve the *same* `@grpc/grpc-js`
+before trusting the result — see the last caveat below.
+
+Run the versions back to back and compare against the same version's own
+run-to-run spread, not against a single earlier run. On this corpus `p99`
+moves by well over 100 ms between identical runs, so a difference smaller than
+that is noise.
+
 ## Caveats
 
 - Run it from somewhere representative of the caller. Results from inside GCP
