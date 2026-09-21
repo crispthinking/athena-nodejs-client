@@ -17,6 +17,12 @@
  * preparation, handshake, and request upload — is invisible from the service
  * side, which is exactly the gap this tool exists to size.
  *
+ * `--mode streaming` swaps that phased shape for a pipeline one: a fixed pool
+ * of workers each read, prepare, classify and (optionally) sleep in a loop, so
+ * local preparation and the RPC overlap the way they do in a real consumer.
+ * That is the only mode that can show preparation and the RPC competing for
+ * the same cores — see `streaming.ts`.
+ *
  * Point it at an environment with `--env-file`; every other sample and the
  * functional suite read the same variables.
  */
@@ -26,11 +32,13 @@ import { dirname, extname, resolve } from 'path';
 import { fileURLToPath } from 'url';
 import { performance } from 'perf_hooks';
 import { readdir, readFile, writeFile } from 'fs/promises';
-import { hostname } from 'os';
+import { cpus, hostname } from 'os';
 
 import { Command, Option } from 'commander';
 import * as grpc from '@grpc/grpc-js';
 import { discovery, clientCredentialsGrant } from 'openid-client';
+// Resolved from the repo root, like @grpc/grpc-js — see the README caveats.
+import sharp from 'sharp';
 import {
   ClassifierServiceClient,
   computeHashesFromStream,
@@ -45,6 +53,7 @@ import {
 } from '@crispthinking/athena-classifier-sdk';
 
 import { loadConfig, loadEnvFile, type BenchmarkConfig } from './config.js';
+import { runStreamingPhase, type StreamingPhaseResult } from './streaming.js';
 import { probeTransport, type TransportResult } from './transport.js';
 import {
   bytes,
@@ -64,6 +73,11 @@ const DEFAULT_IMAGE = resolve(moduleDir, '../hash-server/448x448.jpg');
 interface CliOptions {
   envFile?: string;
   label: string;
+  mode: 'phased' | 'streaming';
+  dop: number;
+  items: number;
+  extraDelayMs: number;
+  concurrencySampleMs: number;
   image: string;
   imageDir?: string;
   iterations: number;
@@ -414,6 +428,33 @@ async function main(): Promise<void> {
       'label recorded in the JSON output',
       'unlabelled',
     )
+    .addOption(
+      new Option(
+        '-m, --mode <mode>',
+        'phased: prepare everything up front, then measure the RPC alone. ' +
+          'streaming: a fixed worker pool interleaving prepare and RPC, the ' +
+          'way a throughput-driven consumer does',
+      )
+        .choices(['phased', 'streaming'])
+        .default('phased'),
+    )
+    .option(
+      '--dop <count>',
+      'streaming mode: worker pool size (degree of parallelism)',
+      '8',
+    )
+    .option('--items <count>', 'streaming mode: items to push through', '300')
+    .option(
+      '--extra-delay-ms <ms>',
+      'streaming mode: delay charged to each item after its RPC returns, ' +
+        'standing in for a slower server',
+      '0',
+    )
+    .option(
+      '--concurrency-sample-ms <ms>',
+      'streaming mode: how often to sample the in-flight prepare count',
+      '50',
+    )
     .option('-i, --image <path>', 'image to classify', DEFAULT_IMAGE)
     .option(
       '-d, --image-dir <path>',
@@ -451,6 +492,11 @@ async function main(): Promise<void> {
   const options: CliOptions = {
     envFile: raw.envFile as string | undefined,
     label: raw.label as string,
+    mode: raw.mode as 'phased' | 'streaming',
+    dop: Number.parseInt(raw.dop as string, 10),
+    items: Number.parseInt(raw.items as string, 10),
+    extraDelayMs: Number.parseInt(raw.extraDelayMs as string, 10),
+    concurrencySampleMs: Number.parseInt(raw.concurrencySampleMs as string, 10),
     image: raw.image as string,
     imageDir: raw.imageDir as string | undefined,
     iterations: Number.parseInt(raw.iterations as string, 10),
@@ -494,6 +540,17 @@ async function main(): Promise<void> {
     console.log(
       `  encoding      ${options.encoding}${options.resize ? ', resized to 448x448' : ', not resized'}`,
     );
+    console.log(`  mode          ${options.mode}`);
+    if (options.mode === 'streaming') {
+      console.log(
+        `  pipeline      dop ${options.dop}, ${options.items} items, ` +
+          `+${options.extraDelayMs} ms injected delay per item`,
+      );
+    }
+    console.log(
+      `  host cpu      ${cpus().length} logical cores, ` +
+        `sharp.concurrency ${sharp.concurrency()}`,
+    );
   }
 
   // ---- transport ---------------------------------------------------------
@@ -509,11 +566,8 @@ async function main(): Promise<void> {
   const metadata = buildMetadata(auth.header);
 
   // ---- prepare -----------------------------------------------------------
-  // Prepare every image once up front and cycle through the results during the
-  // RPC phase. That keeps local CPU out of the measured call latency while
-  // still putting a realistic mix of payloads on the wire: after the resize to
-  // 448x448 raw BGR every uncompressed request is the same size, but how well
-  // each one compresses depends entirely on the picture.
+  const streamingMode = options.mode === 'streaming';
+
   const imagePaths =
     options.imageDir === undefined
       ? [resolve(options.image)]
@@ -522,28 +576,51 @@ async function main(): Promise<void> {
   const prepareSamples: number[] = [];
   const inputs: ClassificationInput[] = [];
 
-  for (const path of imagePaths) {
-    const prepared = await prepareInput(
-      await readFile(path),
+  if (streamingMode) {
+    // Streaming mode prepares inside the worker loop — that overlap is the
+    // whole point — so nothing is pre-prepared here. The warmup calls below
+    // still need one real payload to put on the wire.
+    const warmupInput = await prepareInput(
+      await readFile(imagePaths[0] as string),
       config,
       encoding,
       options.resize,
     );
-    prepareSamples.push(prepared.elapsedMs);
-    inputs.push(prepared.input);
-  }
+    inputs.push(warmupInput.input);
+  } else {
+    // Prepare every image once up front and cycle through the results during
+    // the RPC phase. That keeps local CPU out of the measured call latency
+    // while still putting a realistic mix of payloads on the wire: after the
+    // resize to 448x448 raw BGR every uncompressed request is the same size,
+    // but how well each one compresses depends entirely on the picture.
+    for (const path of imagePaths) {
+      const prepared = await prepareInput(
+        await readFile(path),
+        config,
+        encoding,
+        options.resize,
+      );
+      prepareSamples.push(prepared.elapsedMs);
+      inputs.push(prepared.input);
+    }
 
-  // One image gives one prepare sample, which says nothing about spread; take
-  // a few more. A corpus already has one per image.
-  if (imagePaths.length === 1) {
-    const only = await readFile(imagePaths[0] as string);
-    for (let i = 1; i < Math.max(options.connectSamples, 1); i++) {
-      const extra = await prepareInput(only, config, encoding, options.resize);
-      prepareSamples.push(extra.elapsedMs);
+    // One image gives one prepare sample, which says nothing about spread;
+    // take a few more. A corpus already has one per image.
+    if (imagePaths.length === 1) {
+      const only = await readFile(imagePaths[0] as string);
+      for (let i = 1; i < Math.max(options.connectSamples, 1); i++) {
+        const extra = await prepareInput(
+          only,
+          config,
+          encoding,
+          options.resize,
+        );
+        prepareSamples.push(extra.elapsedMs);
+      }
     }
   }
 
-  const payload = summarise(inputs.map((candidate) => candidate.data.length));
+  let payload = summarise(inputs.map((candidate) => candidate.data.length));
 
   /** Round-robins the prepared inputs, with a fresh correlation id per call. */
   const nextInput = (index: number): ClassificationInput => ({
@@ -584,46 +661,85 @@ async function main(): Promise<void> {
     }
   }
 
-  // ---- control: listDeployments -----------------------------------------
-  // Same channel, same auth, negligible payload. If this is fast while
-  // classifySingle is slow, the cost is in shipping the request body.
-  const controlOutcomes = await runPool<CallOutcome>(
-    Math.min(options.iterations, 50),
-    options.concurrency,
-    async () => {
-      const start = performance.now();
-      try {
-        await listDeployments(client, metadata, options.timeout);
-        return { latencyMs: performance.now() - start };
-      } catch (error) {
-        const code = errorCodeName(error);
-        recordError(`listDeployments:${code}`);
-        return { latencyMs: performance.now() - start, errorCode: code };
-      }
-    },
-  );
+  let controlOutcomes: CallOutcome[] = [];
+  let callOutcomes: CallOutcome[] = [];
+  let streamingResult: StreamingPhaseResult | undefined;
 
-  // ---- classifySingle ----------------------------------------------------
-  const callOutcomes = await runPool<CallOutcome>(
-    options.iterations,
-    options.concurrency,
-    async (index) => {
-      const start = performance.now();
-      try {
-        await classifySingle(
-          client,
-          nextInput(index),
-          metadata,
-          options.timeout,
+  if (streamingMode) {
+    // ---- streaming pipeline ----------------------------------------------
+    streamingResult = await runStreamingPhase<ClassificationInput>({
+      imagePaths,
+      items: options.items,
+      dop: options.dop,
+      extraDelayMs: options.extraDelayMs,
+      sampleIntervalMs: options.concurrencySampleMs,
+      errorCodeName,
+      readAndPrepare: async (path) => {
+        const readStart = performance.now();
+        const raw = await readFile(path);
+        const readMs = performance.now() - readStart;
+        const prepared = await prepareInput(
+          raw,
+          config,
+          encoding,
+          options.resize,
         );
-        return { latencyMs: performance.now() - start };
-      } catch (error) {
-        const code = errorCodeName(error);
-        recordError(`classifySingle:${code}`);
-        return { latencyMs: performance.now() - start, errorCode: code };
-      }
-    },
-  );
+        return {
+          input: prepared.input,
+          bytes: prepared.input.data.length,
+          readMs,
+        };
+      },
+      classify: async (input) => {
+        await classifySingle(client, input, metadata, options.timeout);
+      },
+    });
+    for (const [code, count] of Object.entries(streamingResult.errors)) {
+      errors[code] = (errors[code] ?? 0) + count;
+    }
+    payload = streamingResult.payloadBytes;
+  } else {
+    // ---- control: listDeployments ----------------------------------------
+    // Same channel, same auth, negligible payload. If this is fast while
+    // classifySingle is slow, the cost is in shipping the request body.
+    controlOutcomes = await runPool<CallOutcome>(
+      Math.min(options.iterations, 50),
+      options.concurrency,
+      async () => {
+        const start = performance.now();
+        try {
+          await listDeployments(client, metadata, options.timeout);
+          return { latencyMs: performance.now() - start };
+        } catch (error) {
+          const code = errorCodeName(error);
+          recordError(`listDeployments:${code}`);
+          return { latencyMs: performance.now() - start, errorCode: code };
+        }
+      },
+    );
+
+    // ---- classifySingle --------------------------------------------------
+    callOutcomes = await runPool<CallOutcome>(
+      options.iterations,
+      options.concurrency,
+      async (index) => {
+        const start = performance.now();
+        try {
+          await classifySingle(
+            client,
+            nextInput(index),
+            metadata,
+            options.timeout,
+          );
+          return { latencyMs: performance.now() - start };
+        } catch (error) {
+          const code = errorCodeName(error);
+          recordError(`classifySingle:${code}`);
+          return { latencyMs: performance.now() - start, errorCode: code };
+        }
+      },
+    );
+  }
 
   // ---- optional stream phase --------------------------------------------
   let streamResult: Awaited<ReturnType<typeof runStreamPhase>> | undefined;
@@ -659,14 +775,21 @@ async function main(): Promise<void> {
     .filter((outcome) => outcome.errorCode === undefined)
     .map((outcome) => outcome.latencyMs);
 
+  // In streaming mode `prepare` and `classifySingle` come from the pipeline
+  // rather than from separate phases, so the standard table keeps its meaning
+  // and two runs in different modes still diff on the same keys.
   const summaries: Record<string, Summary> = {
-    prepare: summarise(prepareSamples),
+    prepare: streamingResult
+      ? streamingResult.summaries.prepare
+      : summarise(prepareSamples),
     connectDns: summarise(transport.samples.map((s) => s.dnsMs)),
     connectTcp: summarise(transport.samples.map((s) => s.tcpMs)),
     connectTls: summarise(transport.samples.map((s) => s.tlsMs)),
     connectTotal: summarise(transport.samples.map((s) => s.totalMs)),
     listDeployments: summarise(controlLatencies),
-    classifySingle: summarise(successLatencies),
+    classifySingle: streamingResult
+      ? streamingResult.summaries.rpc
+      : summarise(successLatencies),
   };
 
   const reconnects = transitions.filter(
@@ -691,8 +814,17 @@ async function main(): Promise<void> {
       platform: process.platform,
       arch: process.arch,
       sdkVersion: sdkVersion(),
+      // Prepare cost is CPU-bound, so neither the prepare numbers nor the
+      // concurrency knee mean anything without these two.
+      cpuCount: cpus().length,
+      sharpConcurrency: sharp.concurrency(),
+      uvThreadpoolSize: process.env['UV_THREADPOOL_SIZE'] ?? 'default (4)',
     },
     options: {
+      mode: options.mode,
+      dop: options.dop,
+      items: options.items,
+      extraDelayMs: options.extraDelayMs,
       iterations: options.iterations,
       concurrency: options.concurrency,
       warmup: options.warmup,
@@ -715,6 +847,7 @@ async function main(): Promise<void> {
     errors,
     connectivity: { reconnects, transitions },
     stream: streamResult ?? null,
+    streamingMode: streamingResult ?? null,
   };
 
   if (options.json !== undefined) {
@@ -760,15 +893,55 @@ async function main(): Promise<void> {
   console.log(
     summaryRow('connect: total', summaries['connectTotal'] as Summary),
   );
-  console.log(
-    summaryRow(
-      'listDeployments (control)',
-      summaries['listDeployments'] as Summary,
-    ),
-  );
+  if ((summaries['listDeployments'] as Summary).count > 0) {
+    console.log(
+      summaryRow(
+        'listDeployments (control)',
+        summaries['listDeployments'] as Summary,
+      ),
+    );
+  }
   console.log(
     summaryRow('classifySingle', summaries['classifySingle'] as Summary),
   );
+
+  if (streamingResult) {
+    heading('Streaming pipeline');
+    console.log(summaryHeader());
+    console.log(summaryRow('read (disk)', streamingResult.summaries.read));
+    console.log(
+      summaryRow('prepare (local CPU)', streamingResult.summaries.prepare),
+    );
+    console.log(summaryRow('rpc (successful)', streamingResult.summaries.rpc));
+    console.log(
+      summaryRow('rpc (incl. failures)', streamingResult.summaries.rpcAll),
+    );
+    console.log(summaryRow('injected delay', streamingResult.summaries.delay));
+    console.log(summaryRow('total per item', streamingResult.summaries.total));
+    console.log('');
+    console.log(
+      `  throughput    ${streamingResult.throughputPerSec.toFixed(2)} items/s` +
+        ` (${streamingResult.completed} items in ${ms(streamingResult.wallMs)})`,
+    );
+    // The mechanism variable. If this does not move between runs, nothing
+    // about the prepare numbers can be attributed to CPU contention.
+    console.log(
+      `  prepare conc. mean ${streamingResult.prepareConcurrency.mean.toFixed(2)},` +
+        ` p50 ${streamingResult.prepareConcurrency.p50.toFixed(0)},` +
+        ` p90 ${streamingResult.prepareConcurrency.p90.toFixed(0)},` +
+        ` max ${streamingResult.prepareConcurrency.max.toFixed(0)}` +
+        ` (${streamingResult.prepareConcurrency.samples} samples)`,
+    );
+    console.log(
+      `  rpc conc.     mean ${streamingResult.rpcConcurrency.mean.toFixed(2)},` +
+        ` max ${streamingResult.rpcConcurrency.max.toFixed(0)}`,
+    );
+    console.log(
+      `  event loop    p50 ${ms(streamingResult.eventLoopDelayMs.p50)},` +
+        ` p99 ${ms(streamingResult.eventLoopDelayMs.p99)},` +
+        ` max ${ms(streamingResult.eventLoopDelayMs.max)}`,
+    );
+  }
 
   const classify = summaries['classifySingle'] as Summary;
   const control = summaries['listDeployments'] as Summary;

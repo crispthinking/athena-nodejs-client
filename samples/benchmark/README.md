@@ -18,6 +18,19 @@ invisible from the service side:
 This harness times each of those separately, so the gap between "our p90 is
 242 ms" and "the client sees 2 s" can be attributed rather than argued about.
 
+## Two modes
+
+| Mode | Shape | Answers |
+|---|---|---|
+| `--mode phased` (default) | Prepare every image up front, then measure the RPC on its own | How much of a client-observed call is *ours*? Local CPU is deliberately kept out of the measured window |
+| `--mode streaming` | A fixed pool of workers, each looping read → prepare → RPC → optional delay | What does a throughput-driven consumer see, when preparation and the RPC compete for the same cores? |
+
+The phased mode is the right tool for attributing server latency, and it is
+structurally blind to CPU contention: nothing is ever being prepared while a
+call is in flight. Streaming mode exists because that contention is the thing
+a consumer who times the whole SDK call actually pays for. See
+[Streaming mode](#streaming-mode) below.
+
 ## Setup
 
 ```bash
@@ -80,7 +93,15 @@ npm start -- --env-file ../../.env --keepalive-ms 20000 --label staging-keepaliv
 
 # Also hold a streaming classify open and count drops
 npm start -- --env-file ../../.env --stream --stream-duration 120000
+
+# Pipeline mode: 16 workers interleaving prepare and RPC, as a consumer does
+npm start -- --env-file ../../.env --label pipeline --mode streaming \
+  --dop 16 --items 300 --image-dir ../../athena-protobufs/testcases/benign_model
 ```
+
+`--stream` and `--mode streaming` are different things: `--stream` exercises
+the server's bidirectional `classify` RPC, `--mode streaming` changes how the
+harness itself drives work. They can be used together.
 
 ### Options
 
@@ -88,6 +109,11 @@ npm start -- --env-file ../../.env --stream --stream-duration 120000
 |---|---|---|
 | `--env-file <path>` | — | Loaded before config is read |
 | `--label <name>` | `unlabelled` | Recorded in the JSON, for diffing runs |
+| `--mode <mode>` | `phased` | `phased` or `streaming` — see [Streaming mode](#streaming-mode) |
+| `--dop <n>` | `8` | Streaming mode: worker pool size |
+| `--items <n>` | `300` | Streaming mode: items to push through the pool |
+| `--extra-delay-ms <ms>` | `0` | Streaming mode: delay charged to each item after its RPC returns |
+| `--concurrency-sample-ms <ms>` | `50` | Streaming mode: in-flight sampling interval |
 | `--image <path>` | `../hash-server/448x448.jpg` | Any format when resizing |
 | `--image-dir <path>` | — | Directory of images, searched recursively; cycled through per call |
 | `--iterations <n>` | `100` | Measured `classifySingle` calls |
@@ -100,6 +126,110 @@ npm start -- --env-file ../../.env --stream --stream-duration 120000
 | `--timeout <ms>` | `30000` | Per-call deadline |
 | `--stream` | off | Also exercise the streaming path |
 | `--json <path>` | — | Write the full result |
+
+## Streaming mode
+
+```bash
+npm start -- --env-file ../../.env --label pipeline-dop16 \
+  --mode streaming --dop 16 --items 300 --extra-delay-ms 0 \
+  --image-dir ../../athena-protobufs/testcases/benign_model \
+  --json ./dop16-d0.json
+```
+
+A fixed pool of `--dop` workers each loops: read the next image **from disk**,
+prepare it, issue `classifySingle`, optionally sleep for `--extra-delay-ms`,
+repeat. Nothing is pre-loaded, so the pool behaves like a real consumer pulling
+work off a queue: a worker only picks up the next image once it has finished
+the previous one.
+
+### Why the injected delay exists
+
+`--extra-delay-ms` stands in for a slower server, and it is charged **inside**
+the item's total, because the old stack genuinely did hold the caller for that
+long. It is there to test a counter-intuitive prediction: at a fixed worker
+count, *making each call slower should make per-image preparation faster*.
+Workers parked in an RPC are not competing for CPU, so the number of images
+being decoded at the same instant falls, and each decode gets a larger share of
+the machine. If that is what is happening, a customer who times the whole SDK
+call can see their number rise at the moment our server-side number falls.
+
+### What it reports
+
+| Row | Meaning |
+|---|---|
+| `read (disk)` | `readFile` for the source image |
+| `prepare (local CPU)` | The read plus decode, resize, hash and optional Brotli — everything before the wire |
+| `rpc (successful)` | `classifySingle` on calls that returned a response; the like-for-like number against the server's own histogram |
+| `rpc (incl. failures)` | Every call attempt. A worker is parked for the whole call whether or not it succeeds, and that park is what frees the CPU |
+| `injected delay` | What `--extra-delay-ms` actually cost |
+| `total per item` | Read to end of delay, i.e. what the consumer would measure |
+
+Plus three run-level figures:
+
+- **`prepare conc.`** — the in-flight prepare count, sampled every
+  `--concurrency-sample-ms`. **This is the mechanism variable.** A change in
+  prepare latency can only be attributed to CPU contention if this moved; if it
+  is flat between two runs, the runs did not actually differ in the way you
+  think they did, and any difference in prepare time is something else.
+- **`rpc conc.`** — the same for calls in flight, which is the load being put
+  on the service.
+- **`event loop`** — `perf_hooks.monitorEventLoopDelay` over the run. The
+  resize step is a synchronous OpenCV call on the main thread, so a blocked
+  loop shows up here and delays every pending RPC callback too.
+
+The header also prints `os.cpus().length` and `sharp.concurrency()`, because
+neither the prepare numbers nor the position of the concurrency knee mean
+anything without them.
+
+### Running a sweep
+
+Hold everything constant except the one variable:
+
+```bash
+# Delay sweep at fixed DOP — the test of the prediction above
+for d in 0 100 300 600; do
+  npm start -- --env-file ../../.env --label "d$d" --mode streaming \
+    --dop 16 --items 300 --extra-delay-ms "$d" --quiet \
+    --image-dir ../../athena-protobufs/testcases/benign_model \
+    --json "./d$d.json"
+done
+
+# DOP sweep at zero delay — where does the knee sit?
+for n in 1 2 4 8 16 32; do
+  npm start -- --env-file ../../.env --label "dop$n" --mode streaming \
+    --dop "$n" --items 300 --extra-delay-ms 0 --quiet \
+    --image-dir ../../athena-protobufs/testcases/benign_model \
+    --json "./dop$n.json"
+done
+
+jq -r '[.label, .streamingMode.summaries.prepare.p50,
+        .streamingMode.summaries.rpcAll.p50,
+        .streamingMode.prepareConcurrency.mean,
+        .streamingMode.throughputPerSec] | @tsv' d*.json dop*.json
+```
+
+Interleave the delay levels across several repetitions rather than running each
+level once. The RPC leg drifts with whatever else the target environment is
+doing, and that drift changes prepare concurrency all by itself — run the
+levels in one fixed order and the drift lands on one level and looks like an
+effect. Always read `rpc (incl. failures)` next to `prepare conc.`: if the two
+moved together, the injected delay was not the thing that moved the pipeline.
+
+### Caveats specific to streaming mode
+
+- The knee will not sit where an isolated prepare benchmark puts it. Workers
+  spend part of every cycle in the RPC, so a pool of *n* workers keeps fewer
+  than *n* images in preparation at once, and the machine saturates at a higher
+  `--dop` than core count alone suggests.
+- Disk reads share libuv's thread pool with sharp's decode. On a contended run
+  `read (disk)` stops being a rounding error, which is a symptom of saturation
+  rather than of slow storage. Raise `UV_THREADPOOL_SIZE` if you want to
+  separate the two.
+- If the target cannot take the offered concurrency, failed calls park workers
+  for the full deadline and prepare concurrency collapses towards zero — the
+  contended regime is never reached and the sweep measures nothing. Cap
+  `--timeout` (and hold the cap constant across the sweep) so a degraded
+  backend cannot dominate the loop.
 
 ## Choosing images
 
@@ -189,7 +319,7 @@ mkdir /tmp/sdk-old && cd /tmp/sdk-old
 npm init -y && npm pkg set type=module
 npm install @crispthinking/athena-classifier-sdk@1.0.1 commander openid-client
 npm install -D tsx
-cp <repo>/samples/benchmark/{index,config,stats,transport}.ts .
+cp <repo>/samples/benchmark/{index,config,stats,transport,streaming}.ts .
 
 # Pin the endpoint explicitly: older versions default to a different address,
 # and the point of the comparison is to hold the endpoint constant.
@@ -220,3 +350,6 @@ that is noise.
   (`Channel credentials must be a ChannelCredentials object`, plus mismatched
   `Metadata` types at compile time). Leaving it undeclared resolves it to the
   repo-root copy the SDK itself uses. If you add it back, expect both errors.
+- `sharp` is undeclared here for the same reason: streaming mode reports
+  `sharp.concurrency()` and must read it from the copy the SDK's prepare path
+  actually uses, not a second one installed alongside the sample.
