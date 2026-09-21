@@ -1,0 +1,156 @@
+# Athena Benchmark Harness
+
+Measures where time actually goes on a `classifySingle` call, so a
+client-observed number can be compared like-for-like against what the service
+reports for itself.
+
+## Why this exists
+
+`athena.classify_single.duration` in New Relic starts when the server's gRPC
+handler is entered. Everything a consumer pays for *outside* that window is
+invisible from the service side:
+
+- local preparation — decode, resize to 448x448, hash, optional Brotli
+- DNS, TCP and the TLS handshake
+- shipping the request body up to the load balancer
+- reconnects when a backend goes away mid-run
+
+This harness times each of those separately, so the gap between "our p90 is
+242 ms" and "the client sees 2 s" can be attributed rather than argued about.
+
+## Setup
+
+```bash
+cd samples/benchmark
+npm install
+```
+
+## Configuration
+
+Reads the same variables as the other samples and the functional suite, so no
+new config is needed to point it somewhere:
+
+| Variable | Required | Default |
+|---|---|---|
+| `ATHENA_CLIENT_ID` | yes | — |
+| `ATHENA_CLIENT_SECRET` | yes | — |
+| `ATHENA_AFFILIATE` | yes | — |
+| `ATHENA_ISSUER_URL` | no | `https://crispthinking.auth0.com/` |
+| `ATHENA_GRPC_ADDRESS` | no | `api.athena-risk-intelligence.com:443` |
+| `ATHENA_AUDIENCE` | no | `crisp-athena-live` |
+| `ATHENA_DEPLOYMENT_ID` | only for `--stream` | first from `listDeployments` |
+
+The functional suite's `VITE_`-prefixed copies (`VITE_ATHENA_CLIENT_ID`,
+`VITE_OAUTH_ISSUER`, `VITE_ATHENA_GRPC_ADDRESS`, …) are accepted as a fallback,
+so the repo-root `.env` works as-is.
+
+Point at an environment with `--env-file`:
+
+```bash
+npm start -- --env-file ../../.env --label staging
+npm start -- --env-file ../.env       --label live
+```
+
+Variables already exported in your shell win over the file, so a single
+override needs no edit:
+
+```bash
+ATHENA_GRPC_ADDRESS=api-live.athena-risk-intelligence.com:443 npm start -- --label live-direct
+```
+
+## Usage
+
+```bash
+# Default: 100 sequential calls plus a 10-sample handshake probe
+npm start -- --env-file ../../.env --label staging-before
+
+# Concurrency, and a JSON record to diff against a later run
+npm start -- --env-file ../../.env --label staging-after \
+  --iterations 500 --concurrency 8 --json ./staging-after.json
+
+# Does compression change the picture? (uncompressed 448x448 BGR is ~590 KiB)
+npm start -- --env-file ../../.env --encoding brotli --label staging-brotli
+
+# A/B a keepalive setting on the channel
+npm start -- --env-file ../../.env --keepalive-ms 20000 --label staging-keepalive
+
+# Also hold a streaming classify open and count drops
+npm start -- --env-file ../../.env --stream --stream-duration 120000
+```
+
+### Options
+
+| Option | Default | Notes |
+|---|---|---|
+| `--env-file <path>` | — | Loaded before config is read |
+| `--label <name>` | `unlabelled` | Recorded in the JSON, for diffing runs |
+| `--image <path>` | `../hash-server/448x448.jpg` | Any format when resizing |
+| `--iterations <n>` | `100` | Measured `classifySingle` calls |
+| `--concurrency <n>` | `1` | Calls in flight at once |
+| `--warmup <n>` | `5` | Unmeasured calls first |
+| `--connect-samples <n>` | `10` | Cold TLS handshakes to time |
+| `--encoding <enc>` | `uncompressed` | `uncompressed` or `brotli` |
+| `--no-resize` | — | Image must already be 448x448 |
+| `--keepalive-ms <ms>` | — | Sets `grpc.keepalive_time_ms` |
+| `--timeout <ms>` | `30000` | Per-call deadline |
+| `--stream` | off | Also exercise the streaming path |
+| `--json <path>` | — | Write the full result |
+
+## Reading the output
+
+**Latency** breaks the call into phases. The two that matter most:
+
+- `listDeployments (control)` — same channel, same auth, negligible payload.
+  A near-empty round trip.
+- `classifySingle` — the same channel carrying the real request body.
+
+The difference between them is what it costs to *ship the payload*, separately
+from the base cost of a round trip. If the control call is fast and
+`classifySingle` is slow, the time is going into upload, not into the service.
+
+`prepare` is local CPU only — no network. It is part of what a consumer
+measures if they time around the SDK's `classifySingle`, and it scales with
+host CPU contention rather than with anything we run.
+
+**Stability** counts departures from gRPC's `READY` state. Each one is a
+reconnect: the client re-establishes TCP and TLS and retries, and the service
+records nothing unusual. A run with a non-zero reconnect count while the
+service reports flat latency is the signature of backend churn being paid for
+on the client side.
+
+**Attribution** prints the payload cost and the end-to-end figure, and is the
+number to compare against `athena.classify_single.duration` for the same
+window:
+
+```sql
+SELECT percentile(athena.classify_single.duration, 50, 90, 99)
+FROM Metric WHERE cloud.account.id = 'crisp-athena-live'
+SINCE 30 minutes ago
+```
+
+Whatever the harness reports above that figure is time the service cannot see.
+
+## Before/after comparison
+
+```bash
+npm start -- --env-file ../../.env --label before --json before.json
+# ... change one thing ...
+npm start -- --env-file ../../.env --label after  --json after.json
+
+diff <(jq .summaries before.json) <(jq .summaries after.json)
+```
+
+Change one variable at a time — endpoint, encoding, keepalive, concurrency —
+and keep the client host fixed, since `prepare` and the handshake are both
+sensitive to where the harness runs.
+
+## Caveats
+
+- Run it from somewhere representative of the caller. Results from inside GCP
+  will understate handshake and upload cost considerably.
+- `connect: dns` reflects the OS resolver cache, so repeat samples on a warm
+  cache are near zero. That is realistic for a long-lived client, but it is not
+  a cold-start measurement.
+- `@grpc/grpc-js` is pinned to the same range as the SDK so npm resolves a
+  single copy. If you see credential type errors, check for a duplicate under
+  `node_modules`.

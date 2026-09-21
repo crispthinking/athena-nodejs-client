@@ -1,0 +1,35 @@
+{
+  "name": "athena-benchmark",
+  "version": "1.0.0",
+  "description": "Latency benchmark harness for the Athena classifier gRPC endpoint",
+  "type": "module",
+  "main": "index.ts",
+  "scripts": {
+    "start": "npx tsx index.ts",
+    "dev": "npx tsx index.ts --help",
+    "build": "npx tsc"
+  },
+  "dependencies": {
+    "@crispthinking/athena-classifier-sdk": "file:../../",
+    "@grpc/grpc-js": "^1.14.0",
+    "commander": "^14.0.3",
+    "openid-client": "^6.8.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.0",
+    "tsx": "^4.22.4",
+    "typescript": "^5.9.2"
+  },
+  "engines": {
+    "node": ">= 22.11 < 23"
+  },
+  "keywords": [
+    "athena",
+    "benchmark",
+    "latency",
+    "grpc",
+    "performance"
+  ],
+  "author": "Crisp Thinking",
+  "license": "MIT"
+}

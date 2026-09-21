@@ -41,3 +41,11 @@ Runs shared test cases from `athena-protobufs/testcases/` through the classifica
 
 - **Use Case**: Integration testing and validation against known test cases
 - **Features**: Multiple test sets, tolerance-based comparison, detailed reporting
+
+### [Benchmark](./benchmark/)
+**Latency Benchmark Harness**
+
+Times each part of a `classifySingle` call separately — local image preparation, DNS/TCP/TLS handshake, a near-empty control call, and the real request — so a client-observed figure can be compared like-for-like against the service's own `athena.classify_single.duration`.
+
+- **Use Case**: Attributing client-side latency; before/after comparison across environments or config changes
+- **Features**: Phase breakdown, percentiles, payload sizing, reconnect counting, JSON output for diffing
