@@ -29,7 +29,7 @@ import { readFile, writeFile } from 'fs/promises';
 import { hostname } from 'os';
 
 import { Command, Option } from 'commander';
-import * as grpc from '@grpc/grpc-js';
+import type * as Grpc from '@grpc/grpc-js';
 import { discovery, clientCredentialsGrant } from 'openid-client';
 import {
   ClassifierServiceClient,
@@ -57,6 +57,18 @@ import {
 } from './stats.js';
 
 const require_ = createRequire(import.meta.url);
+
+/**
+ * The SDK's generated client is bound to the `@grpc/grpc-js` copy the SDK
+ * itself resolved. Credentials and metadata built from a second copy are
+ * rejected ("Channel credentials must be a ChannelCredentials object"), which
+ * is easy to hit here because this sample links the SDK via `file:` and so
+ * gets its own `node_modules`. Resolve the runtime module through the SDK to
+ * guarantee a single instance; the import above is types only.
+ */
+const grpc = createRequire(
+  require_.resolve('@crispthinking/athena-classifier-sdk'),
+)('@grpc/grpc-js') as typeof Grpc;
 const moduleDir = dirname(fileURLToPath(import.meta.url));
 
 const DEFAULT_IMAGE = resolve(moduleDir, '../hash-server/448x448.jpg');
@@ -159,7 +171,7 @@ async function authenticate(config: BenchmarkConfig): Promise<{
  * Builds the metadata the SDK sends, so the benchmark exercises the same
  * headers a real client would.
  */
-function buildMetadata(authHeader: string): grpc.Metadata {
+function buildMetadata(authHeader: string): Grpc.Metadata {
   const metadata = new grpc.Metadata();
   metadata.set('x-client-version', `athena-nodejs-client/${sdkVersion()}`);
   metadata.set('x-client-language', 'nodejs');
@@ -215,7 +227,7 @@ async function prepareInput(
 function classifySingle(
   client: ClassifierServiceClient,
   input: ClassificationInput,
-  metadata: grpc.Metadata,
+  metadata: Grpc.Metadata,
   deadlineMs: number,
 ): Promise<ClassificationOutput> {
   return new Promise((resolvePromise, reject) => {
@@ -237,7 +249,7 @@ function classifySingle(
 /** Promisified `listDeployments` — the near-empty control call. */
 function listDeployments(
   client: ClassifierServiceClient,
-  metadata: grpc.Metadata,
+  metadata: Grpc.Metadata,
   deadlineMs: number,
 ): Promise<Deployment[]> {
   return new Promise((resolvePromise, reject) => {
@@ -273,7 +285,7 @@ function watchConnectivity(
   const transitions: ConnectivityTransition[] = [];
   let stopped = false;
 
-  const arm = (previous: grpc.connectivityState): void => {
+  const arm = (previous: Grpc.connectivityState): void => {
     if (stopped) {
       return;
     }
@@ -310,7 +322,7 @@ function watchConnectivity(
  */
 async function runStreamPhase(
   client: ClassifierServiceClient,
-  metadata: grpc.Metadata,
+  metadata: Grpc.Metadata,
   input: ClassificationInput,
   deploymentId: string,
   durationMs: number,
@@ -322,7 +334,7 @@ async function runStreamPhase(
   errors: string[];
 }> {
   const start = performance.now();
-  const stream = client.classify(metadata) as grpc.ClientDuplexStream<
+  const stream = client.classify(metadata) as Grpc.ClientDuplexStream<
     ClassifyRequest,
     ClassifyResponse
   >;

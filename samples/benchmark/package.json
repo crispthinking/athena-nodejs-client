@@ -11,11 +11,11 @@
   },
   "dependencies": {
     "@crispthinking/athena-classifier-sdk": "file:../../",
-    "@grpc/grpc-js": "^1.14.0",
     "commander": "^14.0.3",
     "openid-client": "^6.8.1"
   },
   "devDependencies": {
+    "@grpc/grpc-js": "^1.14.0",
     "@types/node": "^24.3.0",
     "tsx": "^4.22.4",
     "typescript": "^5.9.2"

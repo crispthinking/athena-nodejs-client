@@ -151,6 +151,9 @@ sensitive to where the harness runs.
 - `connect: dns` reflects the OS resolver cache, so repeat samples on a warm
   cache are near zero. That is realistic for a long-lived client, but it is not
   a cold-start measurement.
-- `@grpc/grpc-js` is pinned to the same range as the SDK so npm resolves a
-  single copy. If you see credential type errors, check for a duplicate under
-  `node_modules`.
+- `@grpc/grpc-js` is a dev dependency here, used for types only. Because this
+  sample links the SDK with `file:` it gets its own `node_modules`, and a
+  second runtime copy of grpc-js makes the SDK's generated client reject our
+  credentials (`Channel credentials must be a ChannelCredentials object`). The
+  runtime module is therefore resolved *through* the SDK so there is exactly
+  one instance.
