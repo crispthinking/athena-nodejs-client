@@ -151,9 +151,10 @@ sensitive to where the harness runs.
 - `connect: dns` reflects the OS resolver cache, so repeat samples on a warm
   cache are near zero. That is realistic for a long-lived client, but it is not
   a cold-start measurement.
-- `@grpc/grpc-js` is a dev dependency here, used for types only. Because this
-  sample links the SDK with `file:` it gets its own `node_modules`, and a
-  second runtime copy of grpc-js makes the SDK's generated client reject our
-  credentials (`Channel credentials must be a ChannelCredentials object`). The
-  runtime module is therefore resolved *through* the SDK so there is exactly
-  one instance.
+- `@grpc/grpc-js` is deliberately **not** declared as a dependency here. This
+  sample links the SDK with `file:`, so declaring it would install a second
+  copy under `samples/benchmark/node_modules`, and the SDK's generated client
+  rejects credentials and metadata built from a different copy
+  (`Channel credentials must be a ChannelCredentials object`, plus mismatched
+  `Metadata` types at compile time). Leaving it undeclared resolves it to the
+  repo-root copy the SDK itself uses. If you add it back, expect both errors.
