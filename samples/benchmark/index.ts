@@ -35,10 +35,7 @@ import { readdir, readFile, writeFile } from 'fs/promises';
 import { cpus, hostname } from 'os';
 
 import { Command, Option } from 'commander';
-import * as grpc from '@grpc/grpc-js';
 import { discovery, clientCredentialsGrant } from 'openid-client';
-// Resolved from the repo root, like @grpc/grpc-js — see the README caveats.
-import sharp from 'sharp';
 import {
   ClassifierServiceClient,
   computeHashesFromStream,
@@ -47,8 +44,6 @@ import {
   RequestEncoding,
   type ClassificationInput,
   type ClassificationOutput,
-  type ClassifyRequest,
-  type ClassifyResponse,
   type Deployment,
 } from '@crispthinking/athena-classifier-sdk';
 
@@ -67,8 +62,16 @@ import {
 
 const require_ = createRequire(import.meta.url);
 const moduleDir = dirname(fileURLToPath(import.meta.url));
+const sdkEntry = require_.resolve('@crispthinking/athena-classifier-sdk');
+const sdkRequire = createRequire(sdkEntry);
+const grpc = sdkRequire('@grpc/grpc-js') as typeof import('@grpc/grpc-js');
+// Read the same sharp copy the SDK's prepare path uses.
+const sharp = sdkRequire('sharp') as typeof import('sharp');
 
 const DEFAULT_IMAGE = resolve(moduleDir, '../hash-server/448x448.jpg');
+type GrpcMetadata = InstanceType<(typeof grpc)['Metadata']>;
+type GrpcConnectivityState = number;
+type GrpcClassifyStream = ReturnType<ClassifierServiceClient['classify']>;
 
 interface CliOptions {
   envFile?: string;
@@ -113,8 +116,7 @@ interface ConnectivityTransition {
  */
 function sdkVersion(): string {
   try {
-    const entry = require_.resolve('@crispthinking/athena-classifier-sdk');
-    const pkg = require_(resolve(dirname(entry), '../package.json')) as {
+    const pkg = require_(resolve(dirname(sdkEntry), '../package.json')) as {
       version?: string;
     };
     return pkg.version ?? 'unknown';
@@ -174,7 +176,7 @@ async function authenticate(config: BenchmarkConfig): Promise<{
  * Builds the metadata the SDK sends, so the benchmark exercises the same
  * headers a real client would.
  */
-function buildMetadata(authHeader: string): grpc.Metadata {
+function buildMetadata(authHeader: string): GrpcMetadata {
   const metadata = new grpc.Metadata();
   metadata.set('x-client-version', `athena-nodejs-client/${sdkVersion()}`);
   metadata.set('x-client-language', 'nodejs');
@@ -267,7 +269,7 @@ async function prepareInput(
 function classifySingle(
   client: ClassifierServiceClient,
   input: ClassificationInput,
-  metadata: grpc.Metadata,
+  metadata: GrpcMetadata,
   deadlineMs: number,
 ): Promise<ClassificationOutput> {
   return new Promise((resolvePromise, reject) => {
@@ -275,7 +277,7 @@ function classifySingle(
       input,
       metadata,
       { deadline: Date.now() + deadlineMs },
-      (error, response) => {
+      (error: Error | null, response: ClassificationOutput) => {
         if (error) {
           reject(error);
         } else {
@@ -289,7 +291,7 @@ function classifySingle(
 /** Promisified `listDeployments` — the near-empty control call. */
 function listDeployments(
   client: ClassifierServiceClient,
-  metadata: grpc.Metadata,
+  metadata: GrpcMetadata,
   deadlineMs: number,
 ): Promise<Deployment[]> {
   return new Promise((resolvePromise, reject) => {
@@ -297,7 +299,7 @@ function listDeployments(
       {},
       metadata,
       { deadline: Date.now() + deadlineMs },
-      (error, response) => {
+      (error: Error | null, response: { deployments?: Deployment[] } | undefined) => {
         if (error) {
           reject(error);
         } else {
@@ -325,7 +327,7 @@ function watchConnectivity(
   const transitions: ConnectivityTransition[] = [];
   let stopped = false;
 
-  const arm = (previous: grpc.connectivityState): void => {
+  const arm = (previous: GrpcConnectivityState): void => {
     if (stopped) {
       return;
     }
@@ -335,7 +337,7 @@ function watchConnectivity(
       if (stopped) {
         return;
       }
-      const current = channel.getConnectivityState(false);
+      const current = channel.getConnectivityState(false) as GrpcConnectivityState;
       if (current !== previous) {
         transitions.push({
           atMs: performance.now() - startedAt,
@@ -347,7 +349,7 @@ function watchConnectivity(
     });
   };
 
-  arm(channel.getConnectivityState(false));
+  arm(channel.getConnectivityState(false) as GrpcConnectivityState);
 
   return () => {
     stopped = true;
@@ -362,7 +364,7 @@ function watchConnectivity(
  */
 async function runStreamPhase(
   client: ClassifierServiceClient,
-  metadata: grpc.Metadata,
+  metadata: GrpcMetadata,
   input: ClassificationInput,
   deploymentId: string,
   durationMs: number,
@@ -374,10 +376,7 @@ async function runStreamPhase(
   errors: string[];
 }> {
   const start = performance.now();
-  const stream = client.classify(metadata) as grpc.ClientDuplexStream<
-    ClassifyRequest,
-    ClassifyResponse
-  >;
+  const stream = client.classify(metadata) as GrpcClassifyStream;
 
   let firstResponseMs: number | undefined;
   let responses = 0;

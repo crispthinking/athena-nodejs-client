@@ -33,10 +33,20 @@ a consumer who times the whole SDK call actually pays for. See
 
 ## Setup
 
+From the repo root:
+
 ```bash
+npm install
+npm run build
+
 cd samples/benchmark
 npm install
 ```
+
+The sample links `@crispthinking/athena-classifier-sdk` with `file:../../`, so a
+clean checkout also needs the repo-root install and SDK build above: the linked
+package exports `dist/index.js`, and the harness resolves `@grpc/grpc-js` and
+`sharp` from the SDK's installed copy so it uses the same runtime modules.
 
 ## Configuration
 
@@ -328,9 +338,6 @@ ATHENA_GRPC_ADDRESS=api.athena-risk-intelligence.com:443 \
   --image-dir <repo>/athena-protobufs/testcases/benign_model --iterations 96
 ```
 
-Check that both the harness and the SDK resolve the *same* `@grpc/grpc-js`
-before trusting the result — see the last caveat below.
-
 Run the versions back to back and compare against the same version's own
 run-to-run spread, not against a single earlier run. On this corpus `p99`
 moves by well over 100 ms between identical runs, so a difference smaller than
@@ -343,13 +350,6 @@ that is noise.
 - `connect: dns` reflects the OS resolver cache, so repeat samples on a warm
   cache are near zero. That is realistic for a long-lived client, but it is not
   a cold-start measurement.
-- `@grpc/grpc-js` is deliberately **not** declared as a dependency here. This
-  sample links the SDK with `file:`, so declaring it would install a second
-  copy under `samples/benchmark/node_modules`, and the SDK's generated client
-  rejects credentials and metadata built from a different copy
-  (`Channel credentials must be a ChannelCredentials object`, plus mismatched
-  `Metadata` types at compile time). Leaving it undeclared resolves it to the
-  repo-root copy the SDK itself uses. If you add it back, expect both errors.
-- `sharp` is undeclared here for the same reason: streaming mode reports
-  `sharp.concurrency()` and must read it from the copy the SDK's prepare path
-  actually uses, not a second one installed alongside the sample.
+- The harness resolves `@grpc/grpc-js` and `sharp` from the installed SDK
+  package, not from its own `node_modules`, so the harness and the SDK always
+  use the same runtime copy of those modules.
