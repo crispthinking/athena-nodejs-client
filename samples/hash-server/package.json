@@ -17,7 +17,7 @@
   "dependencies": {
     "@crispthinking/athena-classifier-sdk": "file:../../",
     "express": "^5.0.0",
-    "multer": "^2.2.0"
+    "multer": "^2.3.0"
   },
   "devDependencies": {
     "@types/express": "^5.0.0",
