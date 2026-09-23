@@ -75,8 +75,10 @@ export const AthenaAttributes = {
   eventLoopMaxDelay: 'athena.event_loop.max_delay_ms',
   /** gRPC status code name when a call fails. */
   grpcStatus: 'rpc.grpc.status_code',
-  /** Target host:port. */
+  /** Target host or IP address. */
   serverAddress: 'server.address',
+  /** Target port number. */
+  serverPort: 'server.port',
 } as const;
 
 let tracerInstance: Tracer | undefined;
@@ -131,6 +133,7 @@ let instrumentsProvider: MeterProvider | undefined;
  * they raise a latency question with us.
  */
 function getInstruments(): Instruments {
+  ensureEventLoopGaugeRegistered();
   const currentProvider = meterProvider();
   if (instruments !== undefined && instrumentsProvider === currentProvider) {
     return instruments;
@@ -151,16 +154,16 @@ function getInstruments(): Instruments {
     prepareDuration: currentMeter.createHistogram(
       'athena.client.prepare.duration',
       {
-      unit: 'ms',
-      description:
-        'Time spent decoding, resizing, hashing and compressing the image ' +
-        'before it goes on the wire. This is local CPU.',
+        unit: 'ms',
+        description:
+          'Time spent decoding, resizing, hashing and compressing the image ' +
+          'before it goes on the wire. This is local CPU.',
       },
     ),
     authDuration: currentMeter.createHistogram('athena.client.auth.duration', {
       unit: 'ms',
       description:
-      'Time spent acquiring or refreshing an access token. Zero for the ' +
+        'Time spent acquiring or refreshing an access token. Zero for the ' +
         'common case of a cached, unexpired token.',
     }),
     rpcDuration: currentMeter.createHistogram('athena.client.rpc.duration', {
@@ -235,12 +238,14 @@ export function recordClassifyDuration(ms: number, attrs: Attributes): void {
 /** Records time spent preparing an image, and the resulting payload size. */
 export function recordPrepare(
   ms: number,
-  payloadBytes: number,
+  payloadBytes: number | undefined,
   attrs: Attributes,
 ): void {
   const { prepareDuration, payloadSize } = getInstruments();
   prepareDuration.record(ms, attrs);
-  payloadSize.record(payloadBytes, attrs);
+  if (payloadBytes !== undefined) {
+    payloadSize.record(payloadBytes, attrs);
+  }
 }
 
 /** Records time spent acquiring or refreshing a token. */
@@ -256,19 +261,9 @@ export function recordRpc(ms: number, attrs: Attributes): void {
 let loopHistogram: IntervalHistogram | undefined;
 let loopGaugeProvider: MeterProvider | undefined;
 
-/**
- * Starts watching event-loop delay, and publishes it as a gauge.
- *
- * Node reports this from the timer thread, so it keeps measuring while
- * JavaScript is blocked — which is the entire point, since a blocked loop is
- * invisible to any measurement taken from inside that loop. The underlying
- * timer does not hold the event loop open, so enabling this never stops a
- * process from exiting.
- */
-export function enableEventLoopMonitoring(): void {
+function ensureEventLoopGaugeRegistered(): void {
   if (loopHistogram === undefined) {
-    loopHistogram = monitorEventLoopDelay({ resolution: 10 });
-    loopHistogram.enable();
+    return;
   }
 
   const currentProvider = meterProvider();
@@ -301,6 +296,24 @@ export function enableEventLoopMonitoring(): void {
   }
 }
 
+/**
+ * Starts watching event-loop delay, and publishes it as a gauge.
+ *
+ * Node reports this from the timer thread, so it keeps measuring while
+ * JavaScript is blocked — which is the entire point, since a blocked loop is
+ * invisible to any measurement taken from inside that loop. The underlying
+ * timer does not hold the event loop open, so enabling this never stops a
+ * process from exiting.
+ */
+export function enableEventLoopMonitoring(): void {
+  if (loopHistogram === undefined) {
+    loopHistogram = monitorEventLoopDelay({ resolution: 10 });
+    loopHistogram.enable();
+  }
+
+  ensureEventLoopGaugeRegistered();
+}
+
 /** Stops watching event-loop delay. */
 export function disableEventLoopMonitoring(): void {
   loopHistogram?.disable();
@@ -315,18 +328,55 @@ export function disableEventLoopMonitoring(): void {
  * @param span Span to annotate.
  */
 export function annotateEventLoopDelay(span: Span): void {
+  ensureEventLoopGaugeRegistered();
   if (loopHistogram === undefined) {
     return;
   }
   const maxDelayMs = Math.round(loopHistogram.max / 1e6);
-  loopHistogram.reset();
   if (maxDelayMs <= 0) {
     return;
   }
-  span.setAttribute(
-    AthenaAttributes.eventLoopMaxDelay,
-    maxDelayMs,
-  );
+  span.setAttribute(AthenaAttributes.eventLoopMaxDelay, maxDelayMs);
+}
+
+export function grpcTargetAttributes(target: string): Attributes {
+  const normalizedTarget = target.replace(/^[a-z][a-z0-9+.-]*:\/\/\/?/iu, '');
+
+  if (normalizedTarget.startsWith('[')) {
+    const endBracket = normalizedTarget.indexOf(']');
+    if (endBracket > 0) {
+      const address = normalizedTarget.slice(1, endBracket);
+      const port = parsePort(normalizedTarget.slice(endBracket + 2));
+      return buildTargetAttributes(address, port);
+    }
+  }
+
+  const lastColon = normalizedTarget.lastIndexOf(':');
+  if (lastColon > 0 && normalizedTarget.indexOf(':') === lastColon) {
+    const address = normalizedTarget.slice(0, lastColon);
+    const port = parsePort(normalizedTarget.slice(lastColon + 1));
+    return buildTargetAttributes(address, port);
+  }
+
+  return buildTargetAttributes(normalizedTarget);
+}
+
+function buildTargetAttributes(address: string, port?: number): Attributes {
+  return port === undefined
+    ? { [AthenaAttributes.serverAddress]: address }
+    : {
+        [AthenaAttributes.serverAddress]: address,
+        [AthenaAttributes.serverPort]: port,
+      };
+}
+
+function parsePort(value: string): number | undefined {
+  if (!/^\d+$/u.test(value)) {
+    return undefined;
+  }
+
+  const port = Number.parseInt(value, 10);
+  return Number.isSafeInteger(port) ? port : undefined;
 }
 
 /**

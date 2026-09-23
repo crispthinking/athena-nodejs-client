@@ -50,7 +50,9 @@ type MetricRecord = {
 
 describe('telemetry', () => {
   let metricRecords: MetricRecord[] = [];
-  let observableGaugeCallbacks: ((result: { observe: (value: number, attributes?: Record<string, unknown>) => void }) => void)[] = [];
+  let observableGaugeCallbacks: ((result: {
+    observe: (value: number, attributes?: Record<string, unknown>) => void;
+  }) => void)[] = [];
   let spans: MockSpan[] = [];
   let providerMetricRecords: MetricRecord[] = [];
 
@@ -94,7 +96,10 @@ describe('telemetry', () => {
     trace.setGlobalTracerProvider({
       getTracer() {
         return {
-          startSpan(name: string, options?: { attributes?: Record<string, unknown>; kind?: SpanKind }) {
+          startSpan(
+            name: string,
+            options?: { attributes?: Record<string, unknown>; kind?: SpanKind },
+          ) {
             const span: MockSpan = {
               name,
               kind: options?.kind ?? SpanKind.INTERNAL,
@@ -281,6 +286,8 @@ describe('telemetry', () => {
 
     telemetry.recordClassifyDuration(42, { outcome: 'success' });
     telemetry.recordPrepare(11, 256, { outcome: 'success' });
+    telemetry.recordPrepare(13, undefined, { outcome: 'failure' });
+    telemetry.recordAuth(0, { outcome: 'cached' });
     telemetry.recordAuth(5, { outcome: 'failure' });
     telemetry.recordRpc(7, { outcome: 'failure' });
 
@@ -299,6 +306,16 @@ describe('telemetry', () => {
         name: 'athena.client.request.payload_size',
         value: 256,
         attributes: { outcome: 'success' },
+      },
+      {
+        name: 'athena.client.prepare.duration',
+        value: 13,
+        attributes: { outcome: 'failure' },
+      },
+      {
+        name: 'athena.client.auth.duration',
+        value: 0,
+        attributes: { outcome: 'cached' },
       },
       {
         name: 'athena.client.auth.duration',
@@ -392,10 +409,26 @@ describe('telemetry', () => {
       },
     } as never);
 
-    telemetry.enableEventLoopMonitoring();
+    telemetry.recordClassifyDuration(2, { phase: 'after-provider' });
 
     expect(telemetryState.monitorEventLoopDelay).toHaveBeenCalledTimes(1);
     expect(observableGaugeCallbacks).toHaveLength(1);
+  });
+
+  it('splits gRPC targets into server address and port attributes', async () => {
+    const telemetry = await loadTelemetryModule();
+
+    expect(
+      telemetry.grpcTargetAttributes('api.athena-risk-intelligence.com:443'),
+    ).toEqual({
+      [telemetry.AthenaAttributes.serverAddress]:
+        'api.athena-risk-intelligence.com',
+      [telemetry.AthenaAttributes.serverPort]: 443,
+    });
+    expect(telemetry.grpcTargetAttributes('[2001:db8::1]:8443')).toEqual({
+      [telemetry.AthenaAttributes.serverAddress]: '2001:db8::1',
+      [telemetry.AthenaAttributes.serverPort]: 8443,
+    });
   });
 
   it('enables and disables event-loop monitoring', async () => {
@@ -428,10 +461,10 @@ describe('telemetry', () => {
 
     const activeSpan = spans[0] ?? createStandaloneSpan('rpc');
     telemetry.annotateEventLoopDelay(activeSpan as never);
-    expect(activeSpan.attributes[telemetry.AthenaAttributes.eventLoopMaxDelay]).toBe(
-      20,
-    );
-    expect(telemetryState.histogram.reset).toHaveBeenCalledTimes(1);
+    expect(
+      activeSpan.attributes[telemetry.AthenaAttributes.eventLoopMaxDelay],
+    ).toBe(20);
+    expect(telemetryState.histogram.reset).not.toHaveBeenCalled();
 
     telemetry.disableEventLoopMonitoring();
     expect(telemetryState.histogram.disable).toHaveBeenCalledTimes(1);

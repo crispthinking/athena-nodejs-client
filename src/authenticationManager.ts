@@ -121,7 +121,11 @@ export class AuthenticationManager {
       this.tokenExpiration !== undefined &&
       this.tokenExpiration < new Date() &&
       this.token !== undefined;
+    const attributes = {
+      'athena.auth.issuer': this.options.issuerUrl,
+    };
     if (!needsDiscovery && !tokenExpired && this.token !== undefined) {
+      recordAuth(0, attributes);
       return;
     }
 
@@ -141,9 +145,7 @@ export class AuthenticationManager {
         try {
           await this.acquireAccessToken();
         } finally {
-          recordAuth(performance.now() - started, {
-            'athena.auth.issuer': this.options.issuerUrl,
-          });
+          recordAuth(performance.now() - started, attributes);
         }
       },
     );
