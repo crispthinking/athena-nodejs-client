@@ -7,11 +7,25 @@ import {
   ImageFormat,
   RequestEncoding,
 } from './generated/athena/models.js';
-import brotli from 'brotli';
 import { buffer } from 'stream/consumers';
+import { brotliCompress, constants as zlibConstants } from 'node:zlib';
+import { promisify } from 'node:util';
 
 const require_ = createRequire(import.meta.url);
 const { cv } = require_('opencv-wasm');
+
+const compressBrotli = promisify(brotliCompress);
+
+/**
+ * Brotli quality used for request payloads.
+ *
+ * The payload is a 448x448 raw BGR bitmap, which is highly compressible, so the
+ * top of the quality range buys very little. On a representative image quality
+ * 11 spends 2.2 s to reach 275 KiB; quality 5 spends 22 ms to reach 333 KiB.
+ * Paying two seconds of CPU for a further 58 KiB is never the right trade when
+ * the point of compressing is to get the request onto the wire sooner.
+ */
+const BROTLI_QUALITY = 5;
 
 /**
  * Computes MD5 and SHA1 hashes from a readable stream and resizes any image data.
@@ -92,7 +106,17 @@ export async function computeHashesFromStream(
   }
 
   if (encoding === RequestEncoding.REQUEST_ENCODING_BROTLI) {
-    data = Buffer.from(brotli.compress(data));
+    // Node's own Brotli, not the `brotli` npm package: that one is a pure-JS
+    // port whose compress() is synchronous, so it blocked the event loop for
+    // seconds per image. A caller with more than one request in flight saw
+    // that as slow responses, because replies sat unread in the socket while
+    // the loop was busy compressing. This runs on the libuv thread pool.
+    data = await compressBrotli(data, {
+      params: {
+        [zlibConstants.BROTLI_PARAM_QUALITY]: BROTLI_QUALITY,
+        [zlibConstants.BROTLI_PARAM_SIZE_HINT]: data.length,
+      },
+    });
   }
 
   return {
