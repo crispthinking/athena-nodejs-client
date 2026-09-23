@@ -353,6 +353,51 @@ describe('telemetry', () => {
     ]);
   });
 
+  it('registers the event-loop gauge after a meter provider is registered later', async () => {
+    vi.resetModules();
+    trace.disable();
+    metrics.disable();
+    context.disable();
+    telemetryState.monitorEventLoopDelay.mockClear();
+
+    const telemetry = await import('../../src/telemetry.js');
+    telemetry.enableEventLoopMonitoring();
+
+    expect(telemetryState.monitorEventLoopDelay).toHaveBeenCalledTimes(1);
+    expect(observableGaugeCallbacks).toHaveLength(0);
+
+    metrics.setGlobalMeterProvider({
+      getMeter() {
+        return {
+          createHistogram() {
+            return {
+              record: () => undefined,
+            };
+          },
+          createObservableGauge() {
+            return {
+              addCallback(
+                callback: (result: {
+                  observe: (
+                    value: number,
+                    attributes?: Record<string, unknown>,
+                  ) => void;
+                }) => void,
+              ) {
+                observableGaugeCallbacks.push(callback);
+              },
+            };
+          },
+        } as never;
+      },
+    } as never);
+
+    telemetry.enableEventLoopMonitoring();
+
+    expect(telemetryState.monitorEventLoopDelay).toHaveBeenCalledTimes(1);
+    expect(observableGaugeCallbacks).toHaveLength(1);
+  });
+
   it('enables and disables event-loop monitoring', async () => {
     const telemetry = await loadTelemetryModule();
 

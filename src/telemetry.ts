@@ -23,6 +23,7 @@ import {
   type Attributes,
   type Histogram,
   type Meter,
+  type MeterProvider,
   type Span,
   type Tracer,
 } from '@opentelemetry/api';
@@ -80,6 +81,10 @@ export const AthenaAttributes = {
 
 let tracerInstance: Tracer | undefined;
 
+function meterProvider(): MeterProvider {
+  return metrics.getMeterProvider();
+}
+
 /**
  * Returns the tracer, created on first use.
  *
@@ -115,7 +120,7 @@ interface Instruments {
 }
 
 let instruments: Instruments | undefined;
-let instrumentsMeter: Meter | undefined;
+let instrumentsProvider: MeterProvider | undefined;
 
 /**
  * Returns the metric instruments, created on first use.
@@ -126,12 +131,13 @@ let instrumentsMeter: Meter | undefined;
  * they raise a latency question with us.
  */
 function getInstruments(): Instruments {
-  const currentMeter = meter();
-  if (instruments !== undefined && instrumentsMeter === currentMeter) {
+  const currentProvider = meterProvider();
+  if (instruments !== undefined && instrumentsProvider === currentProvider) {
     return instruments;
   }
 
-  instrumentsMeter = currentMeter;
+  instrumentsProvider = currentProvider;
+  const currentMeter = meter();
   instruments = {
     classifyDuration: currentMeter.createHistogram(
       'athena.client.classify_single.duration',
@@ -248,7 +254,7 @@ export function recordRpc(ms: number, attrs: Attributes): void {
 }
 
 let loopHistogram: IntervalHistogram | undefined;
-let loopGaugeRegistered = false;
+let loopGaugeProvider: MeterProvider | undefined;
 
 /**
  * Starts watching event-loop delay, and publishes it as a gauge.
@@ -260,14 +266,14 @@ let loopGaugeRegistered = false;
  * process from exiting.
  */
 export function enableEventLoopMonitoring(): void {
-  if (loopHistogram !== undefined) {
-    return;
+  if (loopHistogram === undefined) {
+    loopHistogram = monitorEventLoopDelay({ resolution: 10 });
+    loopHistogram.enable();
   }
-  loopHistogram = monitorEventLoopDelay({ resolution: 10 });
-  loopHistogram.enable();
 
-  if (!loopGaugeRegistered) {
-    loopGaugeRegistered = true;
+  const currentProvider = meterProvider();
+  if (loopGaugeProvider !== currentProvider) {
+    loopGaugeProvider = currentProvider;
     const gauge = meter().createObservableGauge(
       'athena.client.event_loop.delay',
       {
