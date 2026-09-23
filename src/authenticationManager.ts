@@ -12,9 +12,7 @@ import { jwtDecode, type JwtPayload } from 'jwt-decode';
  * Valid audience values for the Athena SDK.
  */
 export type AthenaAudience =
-  | 'crisp-athena-live'
-  | 'crisp-athena-dev'
-  | 'crisp-athena-qa';
+  'crisp-athena-live' | 'crisp-athena-dev' | 'crisp-athena-qa';
 
 /**
  * List of valid audience values.
