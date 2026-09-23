@@ -15,6 +15,7 @@ const telemetryState = vi.hoisted(() => {
     max: 20e6,
     mean: 12e6,
     percentile: vi.fn((value: number) => (value === 50 ? 5e6 : 15e6)),
+    reset: vi.fn(),
   };
 
   return {
@@ -51,6 +52,7 @@ describe('telemetry', () => {
   let metricRecords: MetricRecord[] = [];
   let observableGaugeCallbacks: ((result: { observe: (value: number, attributes?: Record<string, unknown>) => void }) => void)[] = [];
   let spans: MockSpan[] = [];
+  let providerMetricRecords: MetricRecord[] = [];
 
   function createStandaloneSpan(name: string): MockSpan {
     const span: MockSpan = {
@@ -76,8 +78,10 @@ describe('telemetry', () => {
     telemetryState.histogram.enable.mockClear();
     telemetryState.histogram.disable.mockClear();
     telemetryState.histogram.percentile.mockClear();
+    telemetryState.histogram.reset.mockClear();
 
     metricRecords = [];
+    providerMetricRecords = [];
     observableGaugeCallbacks = [];
     spans = [];
 
@@ -128,7 +132,7 @@ describe('telemetry', () => {
           createHistogram(name: string) {
             return {
               record(value: number, attributes?: Record<string, unknown>) {
-                metricRecords.push({ name, value, attributes });
+                providerMetricRecords.push({ name, value, attributes });
               },
             };
           },
@@ -280,7 +284,7 @@ describe('telemetry', () => {
     telemetry.recordAuth(5, { outcome: 'failure' });
     telemetry.recordRpc(7, { outcome: 'failure' });
 
-    expect(metricRecords).toEqual([
+    expect(providerMetricRecords).toEqual([
       {
         name: 'athena.client.classify_single.duration',
         value: 42,
@@ -305,6 +309,46 @@ describe('telemetry', () => {
         name: 'athena.client.rpc.duration',
         value: 7,
         attributes: { outcome: 'failure' },
+      },
+    ]);
+  });
+
+  it('starts emitting metrics after a meter provider is registered later', async () => {
+    vi.resetModules();
+    trace.disable();
+    metrics.disable();
+    context.disable();
+
+    const telemetry = await import('../../src/telemetry.js');
+    telemetry.recordClassifyDuration(1, { phase: 'before-provider' });
+
+    metricRecords = [];
+    metrics.setGlobalMeterProvider({
+      getMeter() {
+        return {
+          createHistogram(name: string) {
+            return {
+              record(value: number, attributes?: Record<string, unknown>) {
+                metricRecords.push({ name, value, attributes });
+              },
+            };
+          },
+          createObservableGauge() {
+            return {
+              addCallback: () => undefined,
+            };
+          },
+        } as never;
+      },
+    } as never);
+
+    telemetry.recordClassifyDuration(2, { phase: 'after-provider' });
+
+    expect(metricRecords).toEqual([
+      {
+        name: 'athena.client.classify_single.duration',
+        value: 2,
+        attributes: { phase: 'after-provider' },
       },
     ]);
   });
@@ -342,6 +386,7 @@ describe('telemetry', () => {
     expect(activeSpan.attributes[telemetry.AthenaAttributes.eventLoopMaxDelay]).toBe(
       20,
     );
+    expect(telemetryState.histogram.reset).toHaveBeenCalledTimes(1);
 
     telemetry.disableEventLoopMonitoring();
     expect(telemetryState.histogram.disable).toHaveBeenCalledTimes(1);

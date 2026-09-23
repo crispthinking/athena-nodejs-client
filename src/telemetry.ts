@@ -79,7 +79,6 @@ export const AthenaAttributes = {
 } as const;
 
 let tracerInstance: Tracer | undefined;
-let meterInstance: Meter | undefined;
 
 /**
  * Returns the tracer, created on first use.
@@ -99,16 +98,12 @@ function tracer(): Tracer {
 /**
  * Returns the meter, created on first use.
  *
- * Unlike the tracer this is resolved lazily rather than at import time: the
- * metrics API has no upgrading proxy, so a meter taken before the host
+ * Unlike the tracer this is resolved lazily on every use rather than cached:
+ * the metrics API has no upgrading proxy, so a meter taken before the host
  * registers its provider would stay a no-op forever.
  */
 function meter(): Meter {
-  meterInstance ??= metrics.getMeter(
-    INSTRUMENTATION_SCOPE,
-    INSTRUMENTATION_VERSION,
-  );
-  return meterInstance;
+  return metrics.getMeter(INSTRUMENTATION_SCOPE, INSTRUMENTATION_VERSION);
 }
 
 interface Instruments {
@@ -120,6 +115,7 @@ interface Instruments {
 }
 
 let instruments: Instruments | undefined;
+let instrumentsMeter: Meter | undefined;
 
 /**
  * Returns the metric instruments, created on first use.
@@ -130,8 +126,14 @@ let instruments: Instruments | undefined;
  * they raise a latency question with us.
  */
 function getInstruments(): Instruments {
-  instruments ??= {
-    classifyDuration: meter().createHistogram(
+  const currentMeter = meter();
+  if (instruments !== undefined && instrumentsMeter === currentMeter) {
+    return instruments;
+  }
+
+  instrumentsMeter = currentMeter;
+  instruments = {
+    classifyDuration: currentMeter.createHistogram(
       'athena.client.classify_single.duration',
       {
         unit: 'ms',
@@ -140,19 +142,22 @@ function getInstruments(): Instruments {
           'covering preparation, authentication and the RPC.',
       },
     ),
-    prepareDuration: meter().createHistogram('athena.client.prepare.duration', {
+    prepareDuration: currentMeter.createHistogram(
+      'athena.client.prepare.duration',
+      {
       unit: 'ms',
       description:
         'Time spent decoding, resizing, hashing and compressing the image ' +
         'before it goes on the wire. This is local CPU.',
-    }),
-    authDuration: meter().createHistogram('athena.client.auth.duration', {
+      },
+    ),
+    authDuration: currentMeter.createHistogram('athena.client.auth.duration', {
       unit: 'ms',
       description:
-        'Time spent acquiring or refreshing an access token. Zero for the ' +
+      'Time spent acquiring or refreshing an access token. Zero for the ' +
         'common case of a cached, unexpired token.',
     }),
-    rpcDuration: meter().createHistogram('athena.client.rpc.duration', {
+    rpcDuration: currentMeter.createHistogram('athena.client.rpc.duration', {
       unit: 'ms',
       description:
         'Duration of the gRPC call alone, excluding image preparation and ' +
@@ -160,10 +165,13 @@ function getInstruments(): Instruments {
         'difference is network transfer plus any time the event loop was too ' +
         'busy to read the response.',
     }),
-    payloadSize: meter().createHistogram('athena.client.request.payload_size', {
-      unit: 'By',
-      description: 'Size of the request body actually sent.',
-    }),
+    payloadSize: currentMeter.createHistogram(
+      'athena.client.request.payload_size',
+      {
+        unit: 'By',
+        description: 'Size of the request body actually sent.',
+      },
+    ),
   };
   return instruments;
 }
@@ -304,9 +312,14 @@ export function annotateEventLoopDelay(span: Span): void {
   if (loopHistogram === undefined) {
     return;
   }
+  const maxDelayMs = Math.round(loopHistogram.max / 1e6);
+  loopHistogram.reset();
+  if (maxDelayMs <= 0) {
+    return;
+  }
   span.setAttribute(
     AthenaAttributes.eventLoopMaxDelay,
-    Math.round(loopHistogram.max / 1e6),
+    maxDelayMs,
   );
 }
 
