@@ -221,6 +221,35 @@ describe('ClassifierSdk', () => {
       expect(typeof sdk.listDeployments).toBe('function');
     });
 
+    it('should resolve deployments returned by the gRPC client', async () => {
+      const deployments = [{ id: 'deployment-1' }];
+      clientState.listDeployments.mockImplementation(
+        (
+          _empty: unknown,
+          _metadata: unknown,
+          callback: (
+            error: undefined,
+            response: { deployments: unknown[] },
+          ) => void,
+        ) => callback(undefined, { deployments }),
+      );
+
+      await expect(sdk.listDeployments()).resolves.toEqual(deployments);
+    });
+
+    it('should reject when listDeployments returns a gRPC error', async () => {
+      const error = new Error('list failed');
+      clientState.listDeployments.mockImplementation(
+        (
+          _empty: unknown,
+          _metadata: unknown,
+          callback: (error: Error) => void,
+        ) => callback(error),
+      );
+
+      await expect(sdk.listDeployments()).rejects.toThrow('list failed');
+    });
+
     it('should have open method', () => {
       expect(typeof sdk.open).toBe('function');
     });
