@@ -346,8 +346,11 @@ export function grpcTargetAttributes(target: string): Attributes {
     const endBracket = normalizedTarget.indexOf(']');
     if (endBracket > 0) {
       const address = normalizedTarget.slice(1, endBracket);
-      const port = parsePort(normalizedTarget.slice(endBracket + 2));
-      return buildTargetAttributes(address, port);
+      if (normalizedTarget.at(endBracket + 1) === ':') {
+        const port = parsePort(normalizedTarget.slice(endBracket + 2));
+        return buildTargetAttributes(address, port);
+      }
+      return buildTargetAttributes(address);
     }
   }
 
