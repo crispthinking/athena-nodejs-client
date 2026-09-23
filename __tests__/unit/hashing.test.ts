@@ -30,6 +30,12 @@ describe('hashing', () => {
     it('should compute MD5 and SHA1 hashes for a Brotli-compressed valid image', async ({expect}) => {
       const imagePath = __dirname + '/448x448.jpg';
       const imageBuffer = fs.readFileSync(imagePath);
+      const { data: uncompressedData } = await computeHashesFromStream(imageBuffer,
+        RequestEncoding.REQUEST_ENCODING_UNCOMPRESSED,
+        ImageFormat.IMAGE_FORMAT_JPEG,
+        false,
+        [HashType.HASH_TYPE_MD5, HashType.HASH_TYPE_SHA1]
+      );
 
       const { data, format, md5, sha1 } = await computeHashesFromStream(imageBuffer,
         RequestEncoding.REQUEST_ENCODING_BROTLI,
@@ -39,7 +45,7 @@ describe('hashing', () => {
       );
 
       expect(data).toBeDefined();
-      expect(brotliDecompressSync(data)).toEqual(imageBuffer);
+      expect(brotliDecompressSync(data)).toEqual(uncompressedData);
       expect(format).toBe(ImageFormat.IMAGE_FORMAT_JPEG);
 
       expect(md5).toEqual('eb3a95fdd86ce28d9a63a68328783874');
