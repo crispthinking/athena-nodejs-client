@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "esModuleInterop": true,
+    "strict": true,
+    // Only the globals this sample actually needs. Without this, TypeScript
+    // auto-includes every @types package it can see from the repo root, which
+    // pulls in stubs that carry no type definitions and fail to load.
+    "types": ["node"],
+    "skipLibCheck": true,
+    "declaration": false,
+    "outDir": "./dist",
+    "rootDir": "."
+  },
+  "include": ["*.ts"],
+  "exclude": ["node_modules", "dist"]
+}
