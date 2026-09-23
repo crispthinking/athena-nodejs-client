@@ -235,6 +235,15 @@ describe('ClassifierSdk', () => {
       );
 
       await expect(sdk.listDeployments()).resolves.toEqual(deployments);
+      expect(telemetryState.recordRpc).toHaveBeenCalledWith(
+        expect.any(Number),
+        {
+          [telemetry.AthenaAttributes.serverAddress]:
+            'api.athena-risk-intelligence.com',
+          [telemetry.AthenaAttributes.serverPort]: 443,
+        },
+      );
+      expect(telemetryState.annotateEventLoopDelay).toHaveBeenCalledTimes(1);
     });
 
     it('should reject when listDeployments returns a gRPC error', async () => {
@@ -248,6 +257,15 @@ describe('ClassifierSdk', () => {
       );
 
       await expect(sdk.listDeployments()).rejects.toThrow('list failed');
+      expect(telemetryState.recordRpc).toHaveBeenCalledWith(
+        expect.any(Number),
+        {
+          [telemetry.AthenaAttributes.serverAddress]:
+            'api.athena-risk-intelligence.com',
+          [telemetry.AthenaAttributes.serverPort]: 443,
+        },
+      );
+      expect(telemetryState.annotateEventLoopDelay).toHaveBeenCalledTimes(1);
     });
 
     it('should have open method', () => {

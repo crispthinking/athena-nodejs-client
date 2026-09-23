@@ -278,21 +278,33 @@ export class ClassifierSdk extends EventEmitter {
       grpcTargetAttributes(this.grpcAddress),
       async () => {
         const metadata = await this.createMetadata();
+        const attributes = grpcTargetAttributes(this.grpcAddress);
 
         return withSpan(
           'Athena.rpc listDeployments',
           SpanKind.CLIENT,
-          grpcTargetAttributes(this.grpcAddress),
-          async () =>
-            new Promise<Deployment[]>((resolve, reject) => {
-              this.client.listDeployments(Empty, metadata, (err, response) => {
-                if (err) {
-                  reject(err);
-                } else {
-                  resolve(response?.deployments || []);
-                }
+          attributes,
+          async (rpcSpan) => {
+            const rpcStarted = performance.now();
+            try {
+              return await new Promise<Deployment[]>((resolve, reject) => {
+                this.client.listDeployments(
+                  Empty,
+                  metadata,
+                  (err, response) => {
+                    if (err) {
+                      reject(err);
+                    } else {
+                      resolve(response?.deployments || []);
+                    }
+                  },
+                );
               });
-            }),
+            } finally {
+              recordRpc(performance.now() - rpcStarted, attributes);
+              annotateEventLoopDelay(rpcSpan);
+            }
+          },
         );
       },
     );
