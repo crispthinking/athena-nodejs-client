@@ -1,0 +1,33 @@
+{
+  "name": "athena-opentelemetry",
+  "version": "1.0.0",
+  "description": "Exporting Athena SDK traces and metrics with OpenTelemetry",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "start": "node --import ./instrumentation.js index.js"
+  },
+  "dependencies": {
+    "@crispthinking/athena-classifier-sdk": "file:../../",
+    "@opentelemetry/api": "^1.9.1",
+    "@opentelemetry/exporter-metrics-otlp-proto": "^0.222.0",
+    "@opentelemetry/exporter-trace-otlp-proto": "^0.222.0",
+    "@opentelemetry/resources": "^2.2.0",
+    "@opentelemetry/sdk-metrics": "^2.2.0",
+    "@opentelemetry/sdk-node": "^0.222.0",
+    "@opentelemetry/sdk-trace-node": "^2.2.0",
+    "@opentelemetry/semantic-conventions": "^1.38.0"
+  },
+  "engines": {
+    "node": ">= 22.11 < 23"
+  },
+  "keywords": [
+    "athena",
+    "opentelemetry",
+    "tracing",
+    "metrics",
+    "example"
+  ],
+  "author": "Crisp Thinking",
+  "license": "MIT"
+}

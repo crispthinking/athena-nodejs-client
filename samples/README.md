@@ -34,6 +34,16 @@ A TypeScript server for continuous image classification with hash computation. P
 - **Use Case**: Long-running classification service with hash computation
 - **Features**: Continuous processing, MD5/SHA1 hashes, graceful shutdown
 
+### [OpenTelemetry](./opentelemetry/)
+**Traces and Metrics**
+
+Exports the SDK's spans and metrics, splitting a classification into local
+preparation, authentication and wire time so a slow call can be attributed
+rather than guessed at.
+
+- **Use Case**: Diagnosing latency, and shipping Athena timings to your own metrics backend
+- **Features**: Span tree per call, source image dimensions, payload size, event-loop delay
+
 ### [E2E Test Cases](./e2e-testcases/)
 **End-to-End Test Case Runner**
 

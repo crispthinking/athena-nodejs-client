@@ -21,6 +21,20 @@ import {
   AuthenticationManager,
 } from './authenticationManager.js';
 import { computeHashesFromStream } from './hashing.js';
+import {
+  beginEventLoopWindow,
+  endEventLoopWindow,
+  AthenaAttributes,
+  enableEventLoopMonitoring,
+  grpcTargetAttributes,
+  encodingName,
+  recordClassifyDuration,
+  recordPrepare,
+  recordRpc,
+  SpanKind,
+  withSpan,
+} from './telemetry.js';
+import type { Attributes } from '@opentelemetry/api';
 
 /**
  * Options for the classifyImage method.
@@ -61,6 +75,17 @@ export interface ClassifierSdkOptions {
   keepAliveInterval?: number | undefined;
   grpcAddress?: string;
   deploymentId: string;
+  /**
+   * Whether to also publish the `athena.client.event_loop.delay` gauge.
+   *
+   * Off by default, because it samples on a timer. It is not needed to tell
+   * a slow service from a busy caller: every RPC span already carries
+   * `athena.event_loop.utilization` and `athena.event_loop.busy_ms`, which
+   * need no timer and are always recorded. The gauge adds a process-wide view
+   * of individual stalls between collections, which a per-call average can
+   * understate.
+   */
+  monitorEventLoop?: boolean;
   affiliate: string;
   authentication: AuthenticationOptions;
 }
@@ -121,12 +146,48 @@ export class ClassifierSdk extends EventEmitter {
     const inputFormat: ImageFormat =
       'format' in input ? input.format : ImageFormat.IMAGE_FORMAT_UNSPECIFIED;
 
-    const { md5, sha1, data, format } = await computeHashesFromStream(
-      input.data,
-      encoding,
-      inputFormat,
-      shouldResize,
-      includeHashes,
+    const { md5, sha1, data, format } = await withSpan(
+      'Athena.prepareImage',
+      SpanKind.INTERNAL,
+      {
+        [AthenaAttributes.correlationId]: correlationId,
+        [AthenaAttributes.encoding]: encodingName(encoding),
+        [AthenaAttributes.resize]: shouldResize,
+      },
+      async (span) => {
+        const started = performance.now();
+        const attributes: Attributes = {
+          [AthenaAttributes.encoding]: encodingName(encoding),
+          [AthenaAttributes.resize]: shouldResize,
+        };
+        let payloadBytes: number | undefined;
+        try {
+          const result = await computeHashesFromStream(
+            input.data,
+            encoding,
+            inputFormat,
+            shouldResize,
+            includeHashes,
+          );
+          if (result.sourceBytes !== undefined) {
+            span.setAttribute(AthenaAttributes.sourceBytes, result.sourceBytes);
+          }
+          if (result.sourceWidth !== undefined) {
+            span.setAttribute(AthenaAttributes.sourceWidth, result.sourceWidth);
+          }
+          if (result.sourceHeight !== undefined) {
+            span.setAttribute(
+              AthenaAttributes.sourceHeight,
+              result.sourceHeight,
+            );
+          }
+          payloadBytes = result.data.length;
+          span.setAttribute(AthenaAttributes.payloadBytes, payloadBytes);
+          return result;
+        } finally {
+          recordPrepare(performance.now() - started, payloadBytes, attributes);
+        }
+      },
     );
 
     const hashes: ImageHash[] = [];
@@ -159,8 +220,12 @@ export class ClassifierSdk extends EventEmitter {
     deploymentId,
     affiliate,
     authentication,
+    monitorEventLoop = false,
   }: ClassifierSdkOptions) {
     super();
+    if (monitorEventLoop) {
+      enableEventLoopMonitoring();
+    }
     this.grpcAddress = grpcAddress;
     this.client = new ClassifierServiceClient(
       this.grpcAddress,
@@ -172,6 +237,7 @@ export class ClassifierSdk extends EventEmitter {
       deploymentId,
       affiliate,
       authentication,
+      monitorEventLoop,
     };
 
     this.auth = new AuthenticationManager(this.options.authentication);
@@ -209,17 +275,43 @@ export class ClassifierSdk extends EventEmitter {
    * @returns Promise resolving to an array of deployments.
    */
   public async listDeployments(): Promise<Deployment[]> {
-    const metadata = await this.createMetadata();
+    return withSpan(
+      'Athena.listDeployments',
+      SpanKind.INTERNAL,
+      grpcTargetAttributes(this.grpcAddress),
+      async () => {
+        const metadata = await this.createMetadata();
+        const attributes = grpcTargetAttributes(this.grpcAddress);
 
-    return new Promise<Deployment[]>((resolve, reject) => {
-      this.client.listDeployments(Empty, metadata, (err, response) => {
-        if (err) {
-          reject(err);
-        } else {
-          resolve(response?.deployments || []);
-        }
-      });
-    });
+        return withSpan(
+          'Athena.rpc listDeployments',
+          SpanKind.CLIENT,
+          attributes,
+          async (rpcSpan) => {
+            const rpcStarted = performance.now();
+            const loopWindow = beginEventLoopWindow();
+            try {
+              return await new Promise<Deployment[]>((resolve, reject) => {
+                this.client.listDeployments(
+                  Empty,
+                  metadata,
+                  (err, response) => {
+                    if (err) {
+                      reject(err);
+                    } else {
+                      resolve(response?.deployments || []);
+                    }
+                  },
+                );
+              });
+            } finally {
+              recordRpc(performance.now() - rpcStarted, attributes);
+              endEventLoopWindow(rpcSpan, loopWindow, attributes);
+            }
+          },
+        );
+      },
+    );
   }
 
   /**
@@ -336,18 +428,80 @@ export class ClassifierSdk extends EventEmitter {
   public async classifySingle(
     request: ClassifyImageInput,
   ): Promise<ClassificationOutput> {
-    const input = await this.processImageInput(request);
-    const metadata = await this.createMetadata();
+    return withSpan(
+      'Athena.classifySingle',
+      SpanKind.INTERNAL,
+      {
+        ...grpcTargetAttributes(this.grpcAddress),
+        [AthenaAttributes.deploymentId]: this.options.deploymentId,
+        [AthenaAttributes.affiliate]:
+          request.affiliate ?? this.options.affiliate,
+      },
+      async (span) => {
+        const started = performance.now();
+        const affiliate = request.affiliate ?? this.options.affiliate;
+        const attributes: Attributes = {
+          [AthenaAttributes.deploymentId]: this.options.deploymentId,
+          [AthenaAttributes.affiliate]: affiliate,
+          [AthenaAttributes.encoding]: encodingName(
+            request.encoding ?? RequestEncoding.REQUEST_ENCODING_UNCOMPRESSED,
+          ),
+        };
+        try {
+          const input = await this.processImageInput(request);
+          const metadata = await this.createMetadata();
 
-    return new Promise<ClassificationOutput>((resolve, reject) => {
-      this.client.classifySingle(input, metadata, (err, response) => {
-        if (err) {
-          reject(err);
-        } else {
-          resolve(response);
+          span.setAttribute(
+            AthenaAttributes.correlationId,
+            input.correlationId,
+          );
+          span.setAttribute(AthenaAttributes.payloadBytes, input.data.length);
+          attributes[AthenaAttributes.encoding] = encodingName(input.encoding);
+
+          // The RPC gets a span of its own so it can be compared against the
+          // duration the server reports for the same call. A gap between the
+          // two is network transfer, or time this process spent unable to read
+          // the response -- not time the service spent working.
+          const rpcAttributes: Attributes = {
+            ...grpcTargetAttributes(this.grpcAddress),
+            [AthenaAttributes.correlationId]: input.correlationId,
+            [AthenaAttributes.payloadBytes]: input.data.length,
+            ...attributes,
+          };
+          return await withSpan(
+            'Athena.rpc classifySingle',
+            SpanKind.CLIENT,
+            rpcAttributes,
+            async (rpcSpan) => {
+              const rpcStarted = performance.now();
+              const loopWindow = beginEventLoopWindow();
+              try {
+                return await new Promise<ClassificationOutput>(
+                  (resolve, reject) => {
+                    this.client.classifySingle(
+                      input,
+                      metadata,
+                      (err, response) => {
+                        if (err) {
+                          reject(err);
+                        } else {
+                          resolve(response);
+                        }
+                      },
+                    );
+                  },
+                );
+              } finally {
+                recordRpc(performance.now() - rpcStarted, rpcAttributes);
+                endEventLoopWindow(rpcSpan, loopWindow, rpcAttributes);
+              }
+            },
+          );
+        } finally {
+          recordClassifyDuration(performance.now() - started, attributes);
         }
-      });
-    });
+      },
+    );
   }
 
   /**

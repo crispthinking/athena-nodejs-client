@@ -1,35 +1,128 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { ClassifierSdk, ImageFormat } from '../../src/index.js';
+import * as telemetry from '../../src/telemetry.js';
+
+const authenticationState = vi.hoisted(() => ({
+  appendAuthorizationToMetadata: vi.fn(),
+}));
+
+const clientState = vi.hoisted(() => ({
+  classify: vi.fn(),
+  classifySingle: vi.fn(),
+  listDeployments: vi.fn(),
+}));
+
+const hashingState = vi.hoisted(() => ({
+  computeHashesFromStream: vi.fn(),
+}));
+
+const telemetryState = vi.hoisted(() => ({
+  endEventLoopWindow: vi.fn(),
+  enableEventLoopMonitoring: vi.fn(),
+  recordClassifyDuration: vi.fn(),
+  recordPrepare: vi.fn(),
+  recordRpc: vi.fn(),
+}));
 
 // Mock the dependencies
+vi.mock('../../src/generated/athena/models.js', () => ({
+  HashType: {
+    HASH_TYPE_MD5: 1,
+    HASH_TYPE_SHA1: 2,
+  },
+  ImageFormat: {
+    IMAGE_FORMAT_UNSPECIFIED: 0,
+    IMAGE_FORMAT_PNG: 1,
+    IMAGE_FORMAT_JPEG: 2,
+    IMAGE_FORMAT_RAW_UINT8_BGR: 3,
+  },
+  RequestEncoding: {
+    REQUEST_ENCODING_UNCOMPRESSED: 1,
+    REQUEST_ENCODING_BROTLI: 2,
+  },
+}));
+vi.mock('../../src/generated/athena/athena.js', () => ({
+  ClassifierServiceClient: class {
+    classify = clientState.classify;
+    classifySingle = clientState.classifySingle;
+    listDeployments = clientState.listDeployments;
+  },
+}));
+vi.mock('../../src/generated/google/protobuf/empty.js', () => ({
+  Empty: {},
+}));
 vi.mock('@grpc/grpc-js', () => ({
   credentials: {
     createSsl: vi.fn(() => ({ type: 'ssl' })),
   },
-  makeGenericClientConstructor: vi.fn((service, serviceName) => {
-    // Return a mock constructor that behaves like a gRPC client
-    function MockClient(address, credentials, options) {
-      this.address = address;
-      this.credentials = credentials;
-      this.options = options;
-      // Mock the gRPC client methods
-      this.classify = vi.fn();
-      this.listDeployments = vi.fn();
-      this.classifySingle = vi.fn();
+  Metadata: class {
+    values = new Map<string, unknown[]>();
+
+    set(key: string, value: unknown) {
+      this.values.set(key, [value]);
     }
-    MockClient.service = service;
-    MockClient.serviceName = serviceName;
-    return MockClient;
-  }),
-  // Add other grpc exports that might be needed
-  Metadata: vi.fn(() => ({})),
+
+    get(key: string) {
+      return this.values.get(key) ?? [];
+    }
+  },
 }));
-vi.mock('../../src/authenticationManager');
+vi.mock('../../src/authenticationManager.js', async () => {
+  const actual = await vi.importActual<
+    typeof import('../../src/authenticationManager.js')
+  >('../../src/authenticationManager.js');
+  return {
+    ...actual,
+    AuthenticationManager: class {
+      appendAuthorizationToMetadata =
+        authenticationState.appendAuthorizationToMetadata;
+    },
+  };
+});
+vi.mock('../../src/hashing.js', () => ({
+  computeHashesFromStream: hashingState.computeHashesFromStream,
+}));
+vi.mock('../../src/telemetry.js', async () => {
+  const actual = await vi.importActual<typeof import('../../src/telemetry.js')>(
+    '../../src/telemetry.js',
+  );
+  return {
+    ...actual,
+    endEventLoopWindow: telemetryState.endEventLoopWindow,
+    enableEventLoopMonitoring: telemetryState.enableEventLoopMonitoring,
+    recordClassifyDuration: telemetryState.recordClassifyDuration,
+    recordPrepare: telemetryState.recordPrepare,
+    recordRpc: telemetryState.recordRpc,
+  };
+});
 
 describe('ClassifierSdk', () => {
-  let sdk: ClassifierSdk;
+  let ClassifierSdk: typeof import('../../src/index.js').ClassifierSdk;
+  let ImageFormat: typeof import('../../src/index.js').ImageFormat;
+  let sdk: import('../../src/index.js').ClassifierSdk;
 
-  beforeEach(() => {
+  beforeEach(async () => {
+    vi.resetModules();
+    authenticationState.appendAuthorizationToMetadata.mockReset();
+    authenticationState.appendAuthorizationToMetadata.mockResolvedValue(
+      undefined,
+    );
+    clientState.classify.mockReset();
+    clientState.classifySingle.mockReset();
+    clientState.listDeployments.mockReset();
+    hashingState.computeHashesFromStream.mockReset();
+    telemetryState.endEventLoopWindow.mockReset();
+    telemetryState.enableEventLoopMonitoring.mockReset();
+    telemetryState.recordClassifyDuration.mockReset();
+    telemetryState.recordPrepare.mockReset();
+    telemetryState.recordRpc.mockReset();
+
+    ({ ClassifierSdk, ImageFormat } = await import('../../src/index.js'));
+    hashingState.computeHashesFromStream.mockResolvedValue({
+      data: Buffer.from('prepared'),
+      format: ImageFormat.IMAGE_FORMAT_PNG,
+      md5: 'mock-md5',
+      sha1: 'mock-sha1',
+    });
     sdk = new ClassifierSdk({
       deploymentId: 'test-deployment',
       affiliate: 'test-affiliate',
@@ -128,6 +221,53 @@ describe('ClassifierSdk', () => {
       expect(typeof sdk.listDeployments).toBe('function');
     });
 
+    it('should resolve deployments returned by the gRPC client', async () => {
+      const deployments = [{ id: 'deployment-1' }];
+      clientState.listDeployments.mockImplementation(
+        (
+          _empty: unknown,
+          _metadata: unknown,
+          callback: (
+            error: undefined,
+            response: { deployments: unknown[] },
+          ) => void,
+        ) => callback(undefined, { deployments }),
+      );
+
+      await expect(sdk.listDeployments()).resolves.toEqual(deployments);
+      expect(telemetryState.recordRpc).toHaveBeenCalledWith(
+        expect.any(Number),
+        {
+          [telemetry.AthenaAttributes.serverAddress]:
+            'api.athena-risk-intelligence.com',
+          [telemetry.AthenaAttributes.serverPort]: 443,
+        },
+      );
+      expect(telemetryState.endEventLoopWindow).toHaveBeenCalledTimes(1);
+    });
+
+    it('should reject when listDeployments returns a gRPC error', async () => {
+      const error = new Error('list failed');
+      clientState.listDeployments.mockImplementation(
+        (
+          _empty: unknown,
+          _metadata: unknown,
+          callback: (error: Error) => void,
+        ) => callback(error),
+      );
+
+      await expect(sdk.listDeployments()).rejects.toThrow('list failed');
+      expect(telemetryState.recordRpc).toHaveBeenCalledWith(
+        expect.any(Number),
+        {
+          [telemetry.AthenaAttributes.serverAddress]:
+            'api.athena-risk-intelligence.com',
+          [telemetry.AthenaAttributes.serverPort]: 443,
+        },
+      );
+      expect(telemetryState.endEventLoopWindow).toHaveBeenCalledTimes(1);
+    });
+
     it('should have open method', () => {
       expect(typeof sdk.open).toBe('function');
     });
@@ -142,6 +282,79 @@ describe('ClassifierSdk', () => {
 
     it('should have classifySingle method', () => {
       expect(typeof sdk.classifySingle).toBe('function');
+    });
+
+    it('should record prepare and classify durations when image processing fails', async () => {
+      hashingState.computeHashesFromStream.mockRejectedValueOnce(
+        new Error('prepare failed'),
+      );
+
+      await expect(
+        sdk.classifySingle({
+          data: Buffer.from('test'),
+          format: ImageFormat.IMAGE_FORMAT_PNG,
+        }),
+      ).rejects.toThrow('prepare failed');
+
+      expect(telemetryState.recordPrepare).toHaveBeenCalledWith(
+        expect.any(Number),
+        undefined,
+        {
+          [telemetry.AthenaAttributes.encoding]: 'uncompressed',
+          [telemetry.AthenaAttributes.resize]: true,
+        },
+      );
+      expect(telemetryState.recordClassifyDuration).toHaveBeenCalledWith(
+        expect.any(Number),
+        {
+          [telemetry.AthenaAttributes.deploymentId]: 'test-deployment',
+          [telemetry.AthenaAttributes.affiliate]: 'test-affiliate',
+          [telemetry.AthenaAttributes.encoding]: 'uncompressed',
+        },
+      );
+      expect(telemetryState.recordRpc).not.toHaveBeenCalled();
+    });
+
+    it('should record classify duration when the RPC fails', async () => {
+      const rpcError = new Error('rpc failed');
+      (sdk as any).client.classifySingle.mockImplementation(
+        (
+          _input: unknown,
+          _metadata: unknown,
+          callback: (error: Error) => void,
+        ) => callback(rpcError),
+      );
+
+      await expect(
+        sdk.classifySingle({
+          correlationId: 'corr-id',
+          data: Buffer.from('test'),
+          format: ImageFormat.IMAGE_FORMAT_PNG,
+        }),
+      ).rejects.toThrow('rpc failed');
+
+      expect(telemetryState.recordClassifyDuration).toHaveBeenCalledWith(
+        expect.any(Number),
+        {
+          [telemetry.AthenaAttributes.deploymentId]: 'test-deployment',
+          [telemetry.AthenaAttributes.affiliate]: 'test-affiliate',
+          [telemetry.AthenaAttributes.encoding]: 'uncompressed',
+        },
+      );
+      expect(telemetryState.recordRpc).toHaveBeenCalledWith(
+        expect.any(Number),
+        {
+          [telemetry.AthenaAttributes.serverAddress]:
+            'api.athena-risk-intelligence.com',
+          [telemetry.AthenaAttributes.serverPort]: 443,
+          [telemetry.AthenaAttributes.correlationId]: 'corr-id',
+          [telemetry.AthenaAttributes.payloadBytes]:
+            Buffer.from('prepared').length,
+          [telemetry.AthenaAttributes.deploymentId]: 'test-deployment',
+          [telemetry.AthenaAttributes.affiliate]: 'test-affiliate',
+          [telemetry.AthenaAttributes.encoding]: 'uncompressed',
+        },
+      );
     });
 
     it('should throw error when sendClassifyRequest called without open', async () => {

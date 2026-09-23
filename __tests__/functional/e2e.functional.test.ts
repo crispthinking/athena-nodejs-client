@@ -43,9 +43,13 @@ function getImageFormat(filename: string): ImageFormat {
 const DEFAULT_TOLERANCE = 0.0001;
 
 describe('E2E Test Cases', () => {
-  const testcasesDir = path.resolve(__dirname, '../../athena-protobufs/testcases');
+  const testcasesDir = path.resolve(
+    __dirname,
+    '../../athena-protobufs/testcases',
+  );
   const testset = 'integrator_sample';
-  const tolerance = parseFloat(process.env.E2E_TOLERANCE ?? '') || DEFAULT_TOLERANCE;
+  const tolerance =
+    parseFloat(process.env.E2E_TOLERANCE ?? '') || DEFAULT_TOLERANCE;
 
   let sdk: ClassifierSdk;
   let expectedOutputs: ExpectedOutputs;
@@ -92,10 +96,9 @@ describe('E2E Test Cases', () => {
     it('should have all test images available', ({ expect }) => {
       for (const [filename] of expectedOutputs.images) {
         const imagePath = path.join(imagesDir, filename);
-        expect(
-          fs.existsSync(imagePath),
-          `Image not found: ${filename}`,
-        ).toBe(true);
+        expect(fs.existsSync(imagePath), `Image not found: ${filename}`).toBe(
+          true,
+        );
       }
     });
 
@@ -106,10 +109,17 @@ describe('E2E Test Cases', () => {
       const labels = expectedOutputs.classification_labels;
       const failures: {
         filename: string;
-        differences: { label: string; expected: number; actual: number; diff: number }[];
+        differences: {
+          label: string;
+          expected: number;
+          actual: number;
+          diff: number;
+        }[];
       }[] = [];
 
-      annotate(`Running ${expectedOutputs.images.length} test images with tolerance ${tolerance}`);
+      annotate(
+        `Running ${expectedOutputs.images.length} test images with tolerance ${tolerance}`,
+      );
 
       for (const [filename, expectedWeights] of expectedOutputs.images) {
         const imagePath = path.join(imagesDir, filename);
@@ -119,7 +129,10 @@ describe('E2E Test Cases', () => {
           format: getImageFormat(filename),
         });
 
-        expect(response.error, `Classification error for ${filename}`).toBeUndefined();
+        expect(
+          response.error,
+          `Classification error for ${filename}`,
+        ).toBeUndefined();
 
         // Build actual weights map
         const actualWeights = new Map<string, number>();
@@ -130,7 +143,12 @@ describe('E2E Test Cases', () => {
         }
 
         // Compare each label
-        const differences: { label: string; expected: number; actual: number; diff: number }[] = [];
+        const differences: {
+          label: string;
+          expected: number;
+          actual: number;
+          diff: number;
+        }[] = [];
         for (let i = 0; i < labels.length; i++) {
           const label = labels[i];
           const expected = expectedWeights[i];

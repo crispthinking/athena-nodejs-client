@@ -1,10 +1,18 @@
-import { describe, it,} from 'vitest';
-import { computeHashesFromStream, HashType, ImageFormat, RequestEncoding } from '../../src/index.js';
+import { describe, it } from 'vitest';
+import {
+  computeHashesFromStream,
+  HashType,
+  ImageFormat,
+  RequestEncoding,
+} from '../../src/index.js';
 import fs from 'fs';
+import { brotliDecompressSync } from 'node:zlib';
 
 describe('hashing', () => {
-  describe('computeHashesFromStream', () =>  {
-    it('should compute MD5 and SHA1 hashes for a valid image', async ({expect}) => {
+  describe('computeHashesFromStream', () => {
+    it('should compute MD5 and SHA1 hashes for a valid image', async ({
+      expect,
+    }) => {
       // Test implementation here
       // Test implementation here
       const imagePath = __dirname + '/448x448.jpg';
@@ -12,11 +20,12 @@ describe('hashing', () => {
       const imageStream = fs.createReadStream(imagePath);
 
       //assert error is thrown for invalid image
-      const { data, format, md5, sha1 } = await computeHashesFromStream(imageStream,
+      const { data, format, md5, sha1 } = await computeHashesFromStream(
+        imageStream,
         RequestEncoding.REQUEST_ENCODING_UNCOMPRESSED,
         ImageFormat.IMAGE_FORMAT_JPEG,
         false,
-        [HashType.HASH_TYPE_MD5, HashType.HASH_TYPE_SHA1]
+        [HashType.HASH_TYPE_MD5, HashType.HASH_TYPE_SHA1],
       );
 
       expect(data).toBeDefined();
@@ -26,7 +35,38 @@ describe('hashing', () => {
       expect(sha1).toEqual('b972b222bc91c457d904ebff16134dc79b67d1c9');
     });
 
-    it('should compute MD5 and SHA1 hashes for a resized invalid image', async ({expect}) => {
+    it('should compute MD5 and SHA1 hashes for a Brotli-compressed valid image', async ({
+      expect,
+    }) => {
+      const imagePath = __dirname + '/448x448.jpg';
+      const imageBuffer = fs.readFileSync(imagePath);
+      const { data: uncompressedData } = await computeHashesFromStream(
+        imageBuffer,
+        RequestEncoding.REQUEST_ENCODING_UNCOMPRESSED,
+        ImageFormat.IMAGE_FORMAT_JPEG,
+        false,
+        [HashType.HASH_TYPE_MD5, HashType.HASH_TYPE_SHA1],
+      );
+
+      const { data, format, md5, sha1 } = await computeHashesFromStream(
+        imageBuffer,
+        RequestEncoding.REQUEST_ENCODING_BROTLI,
+        ImageFormat.IMAGE_FORMAT_JPEG,
+        false,
+        [HashType.HASH_TYPE_MD5, HashType.HASH_TYPE_SHA1],
+      );
+
+      expect(data).toBeDefined();
+      expect(brotliDecompressSync(data)).toEqual(uncompressedData);
+      expect(format).toBe(ImageFormat.IMAGE_FORMAT_JPEG);
+
+      expect(md5).toEqual('eb3a95fdd86ce28d9a63a68328783874');
+      expect(sha1).toEqual('b972b222bc91c457d904ebff16134dc79b67d1c9');
+    });
+
+    it('should compute MD5 and SHA1 hashes for a resized invalid image', async ({
+      expect,
+    }) => {
       // Test implementation here
       // Test implementation here
       const imagePath = __dirname + '/578x478.jpg';
@@ -34,11 +74,12 @@ describe('hashing', () => {
       const imageStream = fs.createReadStream(imagePath);
 
       //assert error is thrown for invalid image
-      const { data, format, md5, sha1 } = await computeHashesFromStream(imageStream,
+      const { data, format, md5, sha1 } = await computeHashesFromStream(
+        imageStream,
         RequestEncoding.REQUEST_ENCODING_UNCOMPRESSED,
         ImageFormat.IMAGE_FORMAT_JPEG,
         true,
-        [HashType.HASH_TYPE_MD5, HashType.HASH_TYPE_SHA1]
+        [HashType.HASH_TYPE_MD5, HashType.HASH_TYPE_SHA1],
       );
 
       expect(data).toBeDefined();
@@ -48,14 +89,16 @@ describe('hashing', () => {
       expect(sha1).toEqual('7f979ca35cfe390bd92f5dfa4a05919da76f0e43');
     });
 
-    it('should throw an error for an invalid image', async ({expect}) => {
+    it('should throw an error for an invalid image', async ({ expect }) => {
       // Test implementation here
       const imagePath = __dirname + '/578x478.jpg';
 
       const imageStream = fs.createReadStream(imagePath);
 
       //assert error is thrown for invalid image
-      await expect(computeHashesFromStream(imageStream)).rejects.toThrow('Image must be 448x448 pixels');
+      await expect(computeHashesFromStream(imageStream)).rejects.toThrow(
+        'Image must be 448x448 pixels',
+      );
     });
   });
 });

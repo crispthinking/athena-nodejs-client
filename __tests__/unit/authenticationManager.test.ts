@@ -3,12 +3,30 @@ import {
   AuthenticationManager,
   type AuthenticationOptions,
 } from '../../src/authenticationManager.js';
+import * as telemetry from '../../src/telemetry.js';
 import * as openidClient from 'openid-client';
 import * as jwtDecodeModule from 'jwt-decode';
 import * as grpc from '@grpc/grpc-js';
 
 vi.mock('openid-client');
 vi.mock('jwt-decode');
+vi.mock('../../src/telemetry.js', async () => {
+  const actual = await vi.importActual<typeof import('../../src/telemetry.js')>(
+    '../../src/telemetry.js',
+  );
+  return {
+    ...actual,
+    recordAuth: vi.fn(),
+    withSpan: vi.fn(
+      async (
+        _name: string,
+        _kind: unknown,
+        _attributes: Record<string, unknown>,
+        fn: (span: unknown) => Promise<unknown>,
+      ) => fn({}),
+    ),
+  };
+});
 
 const mockDiscovery = { issuer: 'https://issuer.example.com' } as any;
 const mockToken = {
@@ -120,5 +138,18 @@ describe('AuthenticationManager', () => {
     await manager.getAuthenticationHeader();
     await manager.getAuthenticationHeader();
     expect(openidClient.discovery).toHaveBeenCalledTimes(1);
+  });
+
+  it('should record zero auth duration when reusing a cached token', async () => {
+    await manager.getAuthenticationHeader();
+    vi.mocked(telemetry.recordAuth).mockClear();
+
+    await manager.getAuthenticationHeader();
+
+    expect(telemetry.recordAuth).toHaveBeenCalledWith(0, {
+      'athena.auth.issuer': options.issuerUrl,
+    });
+    expect(openidClient.discovery).toHaveBeenCalledTimes(1);
+    expect(openidClient.clientCredentialsGrant).toHaveBeenCalledTimes(1);
   });
 });
