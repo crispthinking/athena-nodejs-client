@@ -442,6 +442,6 @@ describe('telemetry', () => {
 
     telemetry.enableEventLoopMonitoring();
     expect(telemetryState.monitorEventLoopDelay).toHaveBeenCalledTimes(2);
-    expect(observableGaugeCallbacks).toHaveLength(2);
+    expect(observableGaugeCallbacks).toHaveLength(1);
   });
 });

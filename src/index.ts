@@ -407,7 +407,7 @@ export class ClassifierSdk extends EventEmitter {
   ): Promise<ClassificationOutput> {
     return withSpan(
       'Athena.classifySingle',
-      SpanKind.CLIENT,
+      SpanKind.INTERNAL,
       {
         [AthenaAttributes.serverAddress]: this.grpcAddress,
         [AthenaAttributes.deploymentId]: this.options.deploymentId,
