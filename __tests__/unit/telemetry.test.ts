@@ -439,5 +439,9 @@ describe('telemetry', () => {
     const disabledSpan = createStandaloneSpan('disabled');
     telemetry.annotateEventLoopDelay(disabledSpan as never);
     expect(disabledSpan.attributes).toEqual({});
+
+    telemetry.enableEventLoopMonitoring();
+    expect(telemetryState.monitorEventLoopDelay).toHaveBeenCalledTimes(2);
+    expect(observableGaugeCallbacks).toHaveLength(2);
   });
 });

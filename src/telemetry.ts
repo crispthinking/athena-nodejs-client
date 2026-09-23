@@ -305,6 +305,7 @@ export function enableEventLoopMonitoring(): void {
 export function disableEventLoopMonitoring(): void {
   loopHistogram?.disable();
   loopHistogram = undefined;
+  loopGaugeProvider = undefined;
 }
 
 /**

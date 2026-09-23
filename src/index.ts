@@ -267,20 +267,26 @@ export class ClassifierSdk extends EventEmitter {
   public async listDeployments(): Promise<Deployment[]> {
     return withSpan(
       'Athena.listDeployments',
-      SpanKind.CLIENT,
+      SpanKind.INTERNAL,
       { [AthenaAttributes.serverAddress]: this.grpcAddress },
       async () => {
         const metadata = await this.createMetadata();
 
-        return new Promise<Deployment[]>((resolve, reject) => {
-          this.client.listDeployments(Empty, metadata, (err, response) => {
-            if (err) {
-              reject(err);
-            } else {
-              resolve(response?.deployments || []);
-            }
-          });
-        });
+        return withSpan(
+          'Athena.rpc listDeployments',
+          SpanKind.CLIENT,
+          { [AthenaAttributes.serverAddress]: this.grpcAddress },
+          async () =>
+            new Promise<Deployment[]>((resolve, reject) => {
+              this.client.listDeployments(Empty, metadata, (err, response) => {
+                if (err) {
+                  reject(err);
+                } else {
+                  resolve(response?.deployments || []);
+                }
+              });
+            }),
+        );
       },
     );
   }
@@ -410,6 +416,7 @@ export class ClassifierSdk extends EventEmitter {
       },
       async (span) => {
         const started = performance.now();
+        const affiliate = request.affiliate ?? this.options.affiliate;
         const input = await this.processImageInput(request);
         const metadata = await this.createMetadata();
 
@@ -418,6 +425,7 @@ export class ClassifierSdk extends EventEmitter {
 
         const attributes: Attributes = {
           [AthenaAttributes.deploymentId]: this.options.deploymentId,
+          [AthenaAttributes.affiliate]: affiliate,
           [AthenaAttributes.encoding]: encodingName(input.encoding),
         };
 
