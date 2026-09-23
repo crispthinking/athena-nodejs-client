@@ -7,6 +7,7 @@ import {
 } from 'openid-client';
 import * as grpc from '@grpc/grpc-js';
 import { jwtDecode, type JwtPayload } from 'jwt-decode';
+import { recordAuth, SpanKind, withSpan } from './telemetry.js';
 
 /**
  * Valid audience values for the Athena SDK.
@@ -112,6 +113,48 @@ export class AuthenticationManager {
    * @private
    */
   private async maybeRefreshAccessToken(): Promise<void> {
+    // Only the paths that actually talk to the issuer are traced. The common
+    // case is a cached, unexpired token, and emitting a span for every call
+    // would bury the occasional real token fetch in noise.
+    const needsDiscovery = this.discovery === undefined;
+    const tokenExpired =
+      this.tokenExpiration !== undefined &&
+      this.tokenExpiration < new Date() &&
+      this.token !== undefined;
+    if (!needsDiscovery && !tokenExpired && this.token !== undefined) {
+      return;
+    }
+
+    return withSpan(
+      'Athena.authenticate',
+      SpanKind.CLIENT,
+      {
+        'athena.auth.issuer': this.options.issuerUrl,
+        'athena.auth.reason': needsDiscovery
+          ? 'discovery'
+          : tokenExpired
+            ? 'expired'
+            : 'initial',
+      },
+      async () => {
+        const started = performance.now();
+        try {
+          await this.acquireAccessToken();
+        } finally {
+          recordAuth(performance.now() - started, {
+            'athena.auth.issuer': this.options.issuerUrl,
+          });
+        }
+      },
+    );
+  }
+
+  /**
+   * Performs the discovery, refresh and client-credentials work that
+   * {@link maybeRefreshAccessToken} decided was needed.
+   * @private
+   */
+  private async acquireAccessToken(): Promise<void> {
     if (this.discovery === undefined) {
       // Discover the OIDC server metadata
       console.info('Discovering OIDC server metadata from for: ', {

@@ -13,6 +13,37 @@ Athena is a gRPC-based image classification service designed for CSAM (Child Sex
 - **Compression**: Optional Brotli compression for bandwidth optimization
 - **Error Handling**: Comprehensive error codes and detailed error messages
 - **Monitoring**: Active deployment tracking and backlog monitoring
+- **OpenTelemetry**: Optional traces and metrics separating local preparation, authentication and wire time
+
+## Observability
+
+The SDK is instrumented with OpenTelemetry. It depends only on
+`@opentelemetry/api`, which is inert until your application registers a
+provider, so there is nothing to switch on and no cost if you do not use it.
+
+When a provider is present you get a span tree per call:
+
+```
+Athena.classifySingle                 total, as your code experiences it
+├── Athena.prepareImage               decode, resize, hash, compress
+├── Athena.authenticate               only when a token is actually fetched
+└── Athena.rpc classifySingle         the gRPC call on its own
+```
+
+and histograms for each of those stages, the request payload size, and a gauge
+for event-loop delay in the calling process.
+
+The split exists because those stages are indistinguishable from outside. In
+particular, a synchronous CPU block anywhere in your process inflates the
+measured duration of every Athena call in flight at the time — the response has
+arrived and is waiting in the socket, but nothing can read it until the event
+loop is free. Comparing `athena.client.rpc.duration` against the duration we
+report for the same `athena.correlation_id`, with
+`athena.event_loop.max_delay_ms` alongside it, tells you whether time went to
+the network, to us, or to your own loop.
+
+See [samples/opentelemetry](./samples/opentelemetry/) for a runnable setup and
+the full attribute reference.
 
 # Contributing
 
