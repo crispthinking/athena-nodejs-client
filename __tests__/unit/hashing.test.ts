@@ -1,6 +1,7 @@
 import { describe, it,} from 'vitest';
 import { computeHashesFromStream, HashType, ImageFormat, RequestEncoding } from '../../src/index.js';
 import fs from 'fs';
+import { brotliDecompressSync } from 'node:zlib';
 
 describe('hashing', () => {
   describe('computeHashesFromStream', () =>  {
@@ -20,6 +21,25 @@ describe('hashing', () => {
       );
 
       expect(data).toBeDefined();
+      expect(format).toBe(ImageFormat.IMAGE_FORMAT_JPEG);
+
+      expect(md5).toEqual('eb3a95fdd86ce28d9a63a68328783874');
+      expect(sha1).toEqual('b972b222bc91c457d904ebff16134dc79b67d1c9');
+    });
+
+    it('should compute MD5 and SHA1 hashes for a Brotli-compressed valid image', async ({expect}) => {
+      const imagePath = __dirname + '/448x448.jpg';
+      const imageBuffer = fs.readFileSync(imagePath);
+
+      const { data, format, md5, sha1 } = await computeHashesFromStream(imageBuffer,
+        RequestEncoding.REQUEST_ENCODING_BROTLI,
+        ImageFormat.IMAGE_FORMAT_JPEG,
+        false,
+        [HashType.HASH_TYPE_MD5, HashType.HASH_TYPE_SHA1]
+      );
+
+      expect(data).toBeDefined();
+      expect(brotliDecompressSync(data)).toEqual(imageBuffer);
       expect(format).toBe(ImageFormat.IMAGE_FORMAT_JPEG);
 
       expect(md5).toEqual('eb3a95fdd86ce28d9a63a68328783874');
