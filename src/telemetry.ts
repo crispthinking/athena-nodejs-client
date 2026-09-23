@@ -27,7 +27,12 @@ import {
   type Span,
   type Tracer,
 } from '@opentelemetry/api';
-import { monitorEventLoopDelay, type IntervalHistogram } from 'node:perf_hooks';
+import {
+  monitorEventLoopDelay,
+  performance,
+  type EventLoopUtilization,
+  type IntervalHistogram,
+} from 'node:perf_hooks';
 import { createRequire } from 'node:module';
 
 const require_ = createRequire(import.meta.url);
@@ -65,14 +70,25 @@ export const AthenaAttributes = {
   /** Bytes actually sent in the request, after resize and any compression. */
   payloadBytes: 'athena.request.payload_bytes',
   /**
-   * Worst event-loop delay observed in this process so far, in milliseconds.
+   * Fraction of this RPC's wall time, 0 to 1, that the event loop spent busy
+   * rather than waiting for I/O.
    *
-   * Recorded on the RPC span because it is the single most useful number for
-   * telling a slow server apart from a busy caller. If this is in the seconds
-   * while the RPC is also in the seconds, the time was spent not reading the
-   * response rather than waiting for it.
+   * Measured per call, from a snapshot taken when the RPC starts, so
+   * concurrent calls each get their own window. A healthy call spends almost
+   * all of its time idle, waiting on the network; a value near 1 means the
+   * loop was occupied for most of the call and could not have read the
+   * response promptly even if it had arrived.
    */
-  eventLoopMaxDelay: 'athena.event_loop.max_delay_ms',
+  eventLoopUtilization: 'athena.event_loop.utilization',
+  /**
+   * Milliseconds the event loop was busy during this RPC.
+   *
+   * The same measurement as the utilization, in the units of the RPC duration
+   * it sits beside. If a 4000 ms call shows 3800 ms busy, the service did not
+   * take 4000 ms: this process was occupied for nearly all of it, so the
+   * reply sat unread in the socket.
+   */
+  eventLoopBusy: 'athena.event_loop.busy_ms',
   /** gRPC status code name when a call fails. */
   grpcStatus: 'rpc.grpc.status_code',
   /** Target host or IP address. */
@@ -118,6 +134,7 @@ interface Instruments {
   prepareDuration: Histogram;
   authDuration: Histogram;
   rpcDuration: Histogram;
+  rpcLoopUtilization: Histogram;
   payloadSize: Histogram;
 }
 
@@ -174,6 +191,21 @@ function getInstruments(): Instruments {
         'difference is network transfer plus any time the event loop was too ' +
         'busy to read the response.',
     }),
+    rpcLoopUtilization: currentMeter.createHistogram(
+      'athena.client.rpc.event_loop_utilization',
+      {
+        unit: '1',
+        description:
+          'Fraction of each RPC during which the calling process was busy ' +
+          'rather than waiting on the network. High values mean the ' +
+          'measured RPC duration is inflated by the caller, not the service.',
+        advice: {
+          explicitBucketBoundaries: [
+            0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95, 0.99,
+          ],
+        },
+      },
+    ),
     payloadSize: currentMeter.createHistogram(
       'athena.client.request.payload_size',
       {
@@ -274,9 +306,10 @@ function ensureEventLoopGaugeRegistered(): void {
       {
         unit: 'ms',
         description:
-          'Event-loop delay in the calling process. Sustained values here ' +
-          'inflate every observed call duration, including ones the server ' +
-          'answered promptly.',
+          'Event-loop delay in the calling process since the previous ' +
+          'collection. A large max means at least one long stall in that ' +
+          'interval; every call in flight across it was inflated by the ' +
+          'stall, including ones the server answered promptly.',
       },
     );
     gauge.addCallback((result) => {
@@ -292,6 +325,11 @@ function ensureEventLoopGaugeRegistered(): void {
         'athena.statistic': 'p99',
       });
       result.observe(current.max / 1e6, { 'athena.statistic': 'max' });
+      // Reset here and nowhere else. The collection callback is the only
+      // reader of this histogram, so each export covers exactly the interval
+      // since the last one. Without it every statistic is a process-lifetime
+      // value, and a single stall at startup pins `max` forever.
+      current.reset();
     });
   }
 }
@@ -321,22 +359,46 @@ export function disableEventLoopMonitoring(): void {
 }
 
 /**
- * Attaches the worst event-loop delay seen so far to a span.
+ * Snapshots event-loop utilization at the start of an RPC.
  *
- * A no-op when monitoring is switched off.
+ * Deliberately independent of {@link enableEventLoopMonitoring}. That starts
+ * a sampling timer, which is why it is opt-in; utilization starts nothing and
+ * only reads two counters libuv already maintains, so it costs the same as
+ * the no-op API calls around it and is always on.
  *
- * @param span Span to annotate.
+ * @returns An opaque snapshot to hand back when the RPC finishes.
  */
-export function annotateEventLoopDelay(span: Span): void {
-  ensureEventLoopGaugeRegistered();
-  if (loopHistogram === undefined) {
+export function beginEventLoopWindow(): EventLoopUtilization {
+  return performance.eventLoopUtilization();
+}
+
+/**
+ * Records how busy the event loop was across an RPC.
+ *
+ * Utilization is a delta against the snapshot taken when the RPC started,
+ * so each call measures its own window and concurrent calls cannot disturb
+ * one another -- unlike a shared delay histogram, which one call cannot reset
+ * without corrupting the reading for every other call in flight.
+ *
+ * @param span RPC span to annotate.
+ * @param start Snapshot from {@link beginEventLoopWindow}.
+ * @param attributes Metric attributes for the utilization histogram.
+ */
+export function endEventLoopWindow(
+  span: Span,
+  start: EventLoopUtilization | undefined,
+  attributes: Attributes,
+): void {
+  if (start === undefined) {
     return;
   }
-  const maxDelayMs = Math.round(loopHistogram.max / 1e6);
-  if (maxDelayMs <= 0) {
-    return;
-  }
-  span.setAttribute(AthenaAttributes.eventLoopMaxDelay, maxDelayMs);
+  const window = performance.eventLoopUtilization(start);
+  span.setAttribute(
+    AthenaAttributes.eventLoopUtilization,
+    Math.round(window.utilization * 1000) / 1000,
+  );
+  span.setAttribute(AthenaAttributes.eventLoopBusy, Math.round(window.active));
+  getInstruments().rpcLoopUtilization.record(window.utilization, attributes);
 }
 
 export function grpcTargetAttributes(target: string): Attributes {

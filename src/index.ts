@@ -22,7 +22,8 @@ import {
 } from './authenticationManager.js';
 import { computeHashesFromStream } from './hashing.js';
 import {
-  annotateEventLoopDelay,
+  beginEventLoopWindow,
+  endEventLoopWindow,
   AthenaAttributes,
   enableEventLoopMonitoring,
   grpcTargetAttributes,
@@ -75,12 +76,14 @@ export interface ClassifierSdkOptions {
   grpcAddress?: string;
   deploymentId: string;
   /**
-   * Whether to watch event-loop delay and publish it as a metric.
+   * Whether to also publish the `athena.client.event_loop.delay` gauge.
    *
-   * Off by default. The measurement comes from Node's timer thread, costs a
-   * single unreferenced timer, and is the only signal that distinguishes a
-   * slow service from a caller too busy to read the reply. Set to true to
-   * publish event-loop delay alongside the other OpenTelemetry signals.
+   * Off by default, because it samples on a timer. It is not needed to tell
+   * a slow service from a busy caller: every RPC span already carries
+   * `athena.event_loop.utilization` and `athena.event_loop.busy_ms`, which
+   * need no timer and are always recorded. The gauge adds a process-wide view
+   * of individual stalls between collections, which a per-call average can
+   * understate.
    */
   monitorEventLoop?: boolean;
   affiliate: string;
@@ -286,6 +289,7 @@ export class ClassifierSdk extends EventEmitter {
           attributes,
           async (rpcSpan) => {
             const rpcStarted = performance.now();
+            const loopWindow = beginEventLoopWindow();
             try {
               return await new Promise<Deployment[]>((resolve, reject) => {
                 this.client.listDeployments(
@@ -302,7 +306,7 @@ export class ClassifierSdk extends EventEmitter {
               });
             } finally {
               recordRpc(performance.now() - rpcStarted, attributes);
-              annotateEventLoopDelay(rpcSpan);
+              endEventLoopWindow(rpcSpan, loopWindow, attributes);
             }
           },
         );
@@ -470,6 +474,7 @@ export class ClassifierSdk extends EventEmitter {
             rpcAttributes,
             async (rpcSpan) => {
               const rpcStarted = performance.now();
+              const loopWindow = beginEventLoopWindow();
               try {
                 return await new Promise<ClassificationOutput>(
                   (resolve, reject) => {
@@ -488,7 +493,7 @@ export class ClassifierSdk extends EventEmitter {
                 );
               } finally {
                 recordRpc(performance.now() - rpcStarted, rpcAttributes);
-                annotateEventLoopDelay(rpcSpan);
+                endEventLoopWindow(rpcSpan, loopWindow, rpcAttributes);
               }
             },
           );

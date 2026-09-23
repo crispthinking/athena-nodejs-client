@@ -16,7 +16,7 @@ const hashingState = vi.hoisted(() => ({
 }));
 
 const telemetryState = vi.hoisted(() => ({
-  annotateEventLoopDelay: vi.fn(),
+  endEventLoopWindow: vi.fn(),
   enableEventLoopMonitoring: vi.fn(),
   recordClassifyDuration: vi.fn(),
   recordPrepare: vi.fn(),
@@ -87,7 +87,7 @@ vi.mock('../../src/telemetry.js', async () => {
   );
   return {
     ...actual,
-    annotateEventLoopDelay: telemetryState.annotateEventLoopDelay,
+    endEventLoopWindow: telemetryState.endEventLoopWindow,
     enableEventLoopMonitoring: telemetryState.enableEventLoopMonitoring,
     recordClassifyDuration: telemetryState.recordClassifyDuration,
     recordPrepare: telemetryState.recordPrepare,
@@ -110,7 +110,7 @@ describe('ClassifierSdk', () => {
     clientState.classifySingle.mockReset();
     clientState.listDeployments.mockReset();
     hashingState.computeHashesFromStream.mockReset();
-    telemetryState.annotateEventLoopDelay.mockReset();
+    telemetryState.endEventLoopWindow.mockReset();
     telemetryState.enableEventLoopMonitoring.mockReset();
     telemetryState.recordClassifyDuration.mockReset();
     telemetryState.recordPrepare.mockReset();
@@ -243,7 +243,7 @@ describe('ClassifierSdk', () => {
           [telemetry.AthenaAttributes.serverPort]: 443,
         },
       );
-      expect(telemetryState.annotateEventLoopDelay).toHaveBeenCalledTimes(1);
+      expect(telemetryState.endEventLoopWindow).toHaveBeenCalledTimes(1);
     });
 
     it('should reject when listDeployments returns a gRPC error', async () => {
@@ -265,7 +265,7 @@ describe('ClassifierSdk', () => {
           [telemetry.AthenaAttributes.serverPort]: 443,
         },
       );
-      expect(telemetryState.annotateEventLoopDelay).toHaveBeenCalledTimes(1);
+      expect(telemetryState.endEventLoopWindow).toHaveBeenCalledTimes(1);
     });
 
     it('should have open method', () => {

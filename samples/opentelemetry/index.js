@@ -4,8 +4,8 @@
  *
  * Run with two workers to make the interesting case visible: the RPC span and
  * the server's own reported duration should agree closely, and where they do
- * not, `athena.event_loop.max_delay_ms` on the RPC span says whether this
- * process was too busy to read the reply.
+ * not, `athena.event_loop.busy_ms` on the RPC span says how much of the call
+ * this process spent too busy to read the reply.
  */
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';

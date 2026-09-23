@@ -18,14 +18,28 @@ const telemetryState = vi.hoisted(() => {
     reset: vi.fn(),
   };
 
+  const loopClock = { idle: 0, active: 0 };
+  const utilization = (idle: number, active: number) =>
+    idle + active === 0 ? 0 : active / (idle + active);
+  const eventLoopUtilization = vi.fn(
+    (start?: { idle: number; active: number }) => {
+      const idle = loopClock.idle - (start?.idle ?? 0);
+      const active = loopClock.active - (start?.active ?? 0);
+      return { idle, active, utilization: utilization(idle, active) };
+    },
+  );
+
   return {
+    eventLoopUtilization,
     histogram,
+    loopClock,
     monitorEventLoopDelay: vi.fn(() => histogram),
   };
 });
 
 vi.mock('node:perf_hooks', () => ({
   monitorEventLoopDelay: telemetryState.monitorEventLoopDelay,
+  performance: { eventLoopUtilization: telemetryState.eventLoopUtilization },
 }));
 
 type MockSpan = {
@@ -81,6 +95,9 @@ describe('telemetry', () => {
     telemetryState.histogram.disable.mockClear();
     telemetryState.histogram.percentile.mockClear();
     telemetryState.histogram.reset.mockClear();
+    telemetryState.eventLoopUtilization.mockClear();
+    telemetryState.loopClock.idle = 0;
+    telemetryState.loopClock.active = 0;
 
     metricRecords = [];
     providerMetricRecords = [];
@@ -463,23 +480,81 @@ describe('telemetry', () => {
       { value: 15, attributes: { 'athena.statistic': 'p99' } },
       { value: 20, attributes: { 'athena.statistic': 'max' } },
     ]);
-
-    const activeSpan = spans[0] ?? createStandaloneSpan('rpc');
-    telemetry.annotateEventLoopDelay(activeSpan as never);
-    expect(
-      activeSpan.attributes[telemetry.AthenaAttributes.eventLoopMaxDelay],
-    ).toBe(20);
-    expect(telemetryState.histogram.reset).not.toHaveBeenCalled();
+    // Each collection covers only the interval since the previous one, so a
+    // single stall cannot pin `max` for the life of the process.
+    expect(telemetryState.histogram.reset).toHaveBeenCalledTimes(1);
 
     telemetry.disableEventLoopMonitoring();
     expect(telemetryState.histogram.disable).toHaveBeenCalledTimes(1);
 
-    const disabledSpan = createStandaloneSpan('disabled');
-    telemetry.annotateEventLoopDelay(disabledSpan as never);
-    expect(disabledSpan.attributes).toEqual({});
-
     telemetry.enableEventLoopMonitoring();
     expect(telemetryState.monitorEventLoopDelay).toHaveBeenCalledTimes(2);
     expect(observableGaugeCallbacks).toHaveLength(1);
+  });
+
+  it('gives overlapping RPCs independent event-loop windows', async () => {
+    const telemetry = await loadTelemetryModule();
+    const clock = telemetryState.loopClock;
+    const first = createStandaloneSpan('first');
+    const second = createStandaloneSpan('second');
+
+    const firstStart = telemetry.beginEventLoopWindow();
+    clock.idle += 900;
+    clock.active += 100;
+    const secondStart = telemetry.beginEventLoopWindow();
+    // A 1500 ms synchronous stall while both calls are in flight.
+    clock.active += 1500;
+    telemetry.endEventLoopWindow(first as never, firstStart, {});
+    clock.idle += 400;
+    telemetry.endEventLoopWindow(second as never, secondStart, {});
+
+    // First saw 100 ms of ordinary work and the stall across 2500 ms.
+    expect(first.attributes).toEqual({
+      [telemetry.AthenaAttributes.eventLoopUtilization]: 0.64,
+      [telemetry.AthenaAttributes.eventLoopBusy]: 1600,
+    });
+    // Second started after the ordinary work and outlived the stall by
+    // 400 ms idle. Closing the first window must not have disturbed it.
+    expect(second.attributes).toEqual({
+      [telemetry.AthenaAttributes.eventLoopUtilization]: 0.789,
+      [telemetry.AthenaAttributes.eventLoopBusy]: 1500,
+    });
+    expect(
+      providerMetricRecords
+        .filter((r) => r.name === 'athena.client.rpc.event_loop_utilization')
+        .map((r) => Math.round(r.value * 1000) / 1000),
+    ).toEqual([0.64, 0.789]);
+  });
+
+  it('does not blame an RPC for a stall that ended before it began', async () => {
+    const telemetry = await loadTelemetryModule();
+    const clock = telemetryState.loopClock;
+    const span = createStandaloneSpan('after-stall');
+
+    clock.active += 1500;
+    const start = telemetry.beginEventLoopWindow();
+    clock.idle += 270;
+    clock.active += 3;
+    telemetry.endEventLoopWindow(span as never, start, {});
+
+    expect(span.attributes[telemetry.AthenaAttributes.eventLoopBusy]).toBe(3);
+    expect(
+      span.attributes[telemetry.AthenaAttributes.eventLoopUtilization],
+    ).toBe(0.011);
+  });
+
+  it('records utilization without the opt-in delay monitor', async () => {
+    const telemetry = await loadTelemetryModule();
+    const span = createStandaloneSpan('no-monitor');
+
+    const start = telemetry.beginEventLoopWindow();
+    telemetryState.loopClock.idle += 90;
+    telemetryState.loopClock.active += 10;
+    telemetry.endEventLoopWindow(span as never, start, {});
+
+    expect(telemetryState.monitorEventLoopDelay).not.toHaveBeenCalled();
+    expect(
+      span.attributes[telemetry.AthenaAttributes.eventLoopUtilization],
+    ).toBe(0.1);
   });
 });

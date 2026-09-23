@@ -20,7 +20,8 @@ Athena is a gRPC-based image classification service designed for CSAM (Child Sex
 The SDK is instrumented with OpenTelemetry. It depends only on
 `@opentelemetry/api`, which is inert until your application registers a
 provider, so there is nothing to switch on and no cost if you do not use it.
-Event-loop delay monitoring is additionally opt-in via `monitorEventLoop: true`.
+An additional process-wide event-loop delay gauge, which runs a sampling timer,
+is opt-in via `monitorEventLoop: true`.
 
 When a provider is present you get a span tree per call:
 
@@ -38,10 +39,11 @@ The split exists because those stages are indistinguishable from outside. In
 particular, a synchronous CPU block anywhere in your process inflates the
 measured duration of every Athena call in flight at the time — the response has
 arrived and is waiting in the socket, but nothing can read it until the event
-loop is free. Comparing `athena.client.rpc.duration` against the duration we
-report for the same `athena.correlation_id`, with
-`athena.event_loop.max_delay_ms` alongside it, tells you whether time went to
-the network, to us, or to your own loop.
+loop is free. Every RPC span therefore records `athena.event_loop.busy_ms`:
+how long this process's event loop was occupied *during that call*. Subtract
+it from the RPC duration and compare the remainder against the duration we
+report for the same `athena.correlation_id`, and you can tell whether time went
+to the network, to us, or to your own loop.
 
 See [samples/opentelemetry](./samples/opentelemetry/) for a runnable setup and
 the full attribute reference.
