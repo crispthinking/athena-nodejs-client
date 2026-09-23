@@ -458,14 +458,16 @@ export class ClassifierSdk extends EventEmitter {
           // duration the server reports for the same call. A gap between the
           // two is network transfer, or time this process spent unable to read
           // the response -- not time the service spent working.
+          const rpcAttributes: Attributes = {
+            ...grpcTargetAttributes(this.grpcAddress),
+            [AthenaAttributes.correlationId]: input.correlationId,
+            [AthenaAttributes.payloadBytes]: input.data.length,
+            ...attributes,
+          };
           return await withSpan(
             'Athena.rpc classifySingle',
             SpanKind.CLIENT,
-            {
-              ...grpcTargetAttributes(this.grpcAddress),
-              [AthenaAttributes.correlationId]: input.correlationId,
-              [AthenaAttributes.payloadBytes]: input.data.length,
-            },
+            rpcAttributes,
             async (rpcSpan) => {
               const rpcStarted = performance.now();
               try {
@@ -485,7 +487,7 @@ export class ClassifierSdk extends EventEmitter {
                   },
                 );
               } finally {
-                recordRpc(performance.now() - rpcStarted, attributes);
+                recordRpc(performance.now() - rpcStarted, rpcAttributes);
                 annotateEventLoopDelay(rpcSpan);
               }
             },

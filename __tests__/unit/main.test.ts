@@ -327,6 +327,7 @@ describe('ClassifierSdk', () => {
 
       await expect(
         sdk.classifySingle({
+          correlationId: 'corr-id',
           data: Buffer.from('test'),
           format: ImageFormat.IMAGE_FORMAT_PNG,
         }),
@@ -343,6 +344,12 @@ describe('ClassifierSdk', () => {
       expect(telemetryState.recordRpc).toHaveBeenCalledWith(
         expect.any(Number),
         {
+          [telemetry.AthenaAttributes.serverAddress]:
+            'api.athena-risk-intelligence.com',
+          [telemetry.AthenaAttributes.serverPort]: 443,
+          [telemetry.AthenaAttributes.correlationId]: 'corr-id',
+          [telemetry.AthenaAttributes.payloadBytes]:
+            Buffer.from('prepared').length,
           [telemetry.AthenaAttributes.deploymentId]: 'test-deployment',
           [telemetry.AthenaAttributes.affiliate]: 'test-affiliate',
           [telemetry.AthenaAttributes.encoding]: 'uncompressed',
