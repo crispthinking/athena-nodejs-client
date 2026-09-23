@@ -44,6 +44,44 @@ export function loadEnvFile(envFile: string): void {
   // what we want: an explicit `ATHENA_GRPC_ADDRESS=... npm start` should win
   // over whatever the file says.
   process.loadEnvFile(path);
+  expandReferences();
+}
+
+/**
+ * Resolves `${OTHER_VAR}` references in the values just loaded.
+ *
+ * `set -a; source .env; set +a` expands these; `process.loadEnvFile` does not,
+ * and leaves the literal text in place. The repo env files chain their
+ * `VITE_`-prefixed copies off the plain names that way, so without this the
+ * address arrives as the string `${ATHENA_GRPC_ADDRESS}`.
+ *
+ * Runs to a fixed point so a reference to a reference resolves, with a depth
+ * cap so a cycle cannot hang the harness. Anything still unresolved is left
+ * as-is for the caller to reject.
+ */
+function expandReferences(): void {
+  const pattern = /\$\{([A-Za-z_][A-Za-z0-9_]*)\}/g;
+  for (let pass = 0; pass < 8; pass++) {
+    let changed = false;
+    for (const [key, value] of Object.entries(process.env)) {
+      if (value === undefined || !value.includes('${')) {
+        continue;
+      }
+      const resolved = value.replace(pattern, (literal, name: string) => {
+        const target = process.env[name];
+        return target === undefined || target.includes('${')
+          ? literal
+          : target;
+      });
+      if (resolved !== value) {
+        process.env[key] = resolved;
+        changed = true;
+      }
+    }
+    if (!changed) {
+      return;
+    }
+  }
 }
 
 /**
@@ -51,17 +89,31 @@ export function loadEnvFile(envFile: string): void {
  * `VITE_`-prefixed copy.
  */
 function read(name: string, viteName?: string): string | undefined {
-  const direct = process.env[name];
-  if (direct !== undefined && direct !== '') {
+  const direct = usable(process.env[name]);
+  if (direct !== undefined) {
     return direct;
   }
   if (viteName !== undefined) {
-    const prefixed = process.env[viteName];
-    if (prefixed !== undefined && prefixed !== '') {
-      return prefixed;
-    }
+    return usable(process.env[viteName]);
   }
   return undefined;
+}
+
+/**
+ * Treats an empty value, or one still carrying an unresolved `${OTHER}`
+ * reference, as unset.
+ *
+ * The repo env files define their `VITE_`-prefixed copies as references to the
+ * plain names. When a plain name is absent the reference dangles, and passing
+ * the literal `${ATHENA_GRPC_ADDRESS}` through as an address fails much later
+ * with a bare "Invalid URL". Falling through to the documented default is both
+ * more useful and more honest about what the harness actually connected to.
+ */
+function usable(value: string | undefined): string | undefined {
+  if (value === undefined || value === '' || value.includes('${')) {
+    return undefined;
+  }
+  return value;
 }
 
 /**
