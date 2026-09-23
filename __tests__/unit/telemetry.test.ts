@@ -432,6 +432,9 @@ describe('telemetry', () => {
     expect(telemetry.grpcTargetAttributes('[2001:db8::1]8443')).toEqual({
       [telemetry.AthenaAttributes.serverAddress]: '2001:db8::1',
     });
+    expect(telemetry.grpcTargetAttributes('api.example.com:65536')).toEqual({
+      [telemetry.AthenaAttributes.serverAddress]: 'api.example.com',
+    });
   });
 
   it('enables and disables event-loop monitoring', async () => {

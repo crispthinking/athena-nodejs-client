@@ -379,7 +379,9 @@ function parsePort(value: string): number | undefined {
   }
 
   const port = Number.parseInt(value, 10);
-  return Number.isSafeInteger(port) ? port : undefined;
+  return Number.isSafeInteger(port) && port >= 0 && port <= 65_535
+    ? port
+    : undefined;
 }
 
 /**
