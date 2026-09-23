@@ -72,6 +72,7 @@
     "@bufbuild/protobuf": "^2.10.0",
     "@grpc/grpc-js": "^1.14.0",
     "@grpc/proto-loader": "^0.8.0",
+    "@opentelemetry/api": "^1.9.1",
     "jwt-decode": "^4.0.0",
     "opencv-wasm": "^4.3.0-10",
     "openid-client": "^6.8.1",
