@@ -105,8 +105,7 @@ describe('telemetry', () => {
               kind: options?.kind ?? SpanKind.INTERNAL,
               attributes: { ...(options?.attributes ?? {}) },
               exceptions: [],
-              parent: trace.getSpan(context.active()) as
-                | unknown
+              parent: trace.getSpan(context.active()) as unknown as
                 | MockSpan
                 | undefined,
               ended: false,
