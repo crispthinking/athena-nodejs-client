@@ -12,6 +12,11 @@ or where you want to see the data without wiring up a collector first.
 ## Running it
 
 ```bash
+cd ../..
+npm install
+npm run build
+
+cd samples/opentelemetry
 npm install
 
 export ATHENA_ENV_FILE=../../.env          # or export the vars yourself
@@ -102,10 +107,11 @@ amount of tuning on our side will move it.
 
 ## Event-loop monitoring
 
-On by default. It costs a single timer, measured on Node's timer thread so it
-keeps working while JavaScript is blocked, and it does not keep the process
-alive. To opt out:
+This sample opts in to event-loop monitoring so `athena.event_loop.max_delay_ms`
+and `athena.client.event_loop.delay` are populated. It costs a single timer,
+measured on Node's timer thread so it keeps working while JavaScript is blocked,
+and it does not keep the process alive. In your own application, enable it with:
 
 ```js
-new ClassifierSdk({ monitorEventLoop: false, ... });
+new ClassifierSdk({ monitorEventLoop: true, ... });
 ```

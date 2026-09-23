@@ -32,6 +32,7 @@ const images = readdirSync(imageDir)
 const sdk = new ClassifierSdk({
   deploymentId: process.env.ATHENA_DEPLOYMENT_ID,
   affiliate: process.env.ATHENA_AFFILIATE,
+  monitorEventLoop: true,
   authentication: {
     issuerUrl: process.env.ATHENA_ISSUER_URL,
     clientId: process.env.ATHENA_CLIENT_ID,

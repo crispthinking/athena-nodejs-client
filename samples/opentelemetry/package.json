@@ -19,7 +19,7 @@
     "@opentelemetry/semantic-conventions": "^1.38.0"
   },
   "engines": {
-    "node": ">=22.11.0"
+    "node": ">= 22.11 < 23"
   },
   "keywords": ["athena", "opentelemetry", "tracing", "metrics", "example"],
   "author": "Crisp Thinking",

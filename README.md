@@ -20,6 +20,7 @@ Athena is a gRPC-based image classification service designed for CSAM (Child Sex
 The SDK is instrumented with OpenTelemetry. It depends only on
 `@opentelemetry/api`, which is inert until your application registers a
 provider, so there is nothing to switch on and no cost if you do not use it.
+Event-loop delay monitoring is additionally opt-in via `monitorEventLoop: true`.
 
 When a provider is present you get a span tree per call:
 
@@ -30,8 +31,8 @@ Athena.classifySingle                 total, as your code experiences it
 └── Athena.rpc classifySingle         the gRPC call on its own
 ```
 
-and histograms for each of those stages, the request payload size, and a gauge
-for event-loop delay in the calling process.
+and histograms for each of those stages, the request payload size, and, when
+enabled, a gauge for event-loop delay in the calling process.
 
 The split exists because those stages are indistinguishable from outside. In
 particular, a synchronous CPU block anywhere in your process inflates the

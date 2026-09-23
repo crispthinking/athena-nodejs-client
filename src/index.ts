@@ -76,10 +76,10 @@ export interface ClassifierSdkOptions {
   /**
    * Whether to watch event-loop delay and publish it as a metric.
    *
-   * On by default. The measurement comes from Node's timer thread, costs a
+   * Off by default. The measurement comes from Node's timer thread, costs a
    * single unreferenced timer, and is the only signal that distinguishes a
-   * slow service from a caller too busy to read the reply. Set to false to
-   * opt out entirely.
+   * slow service from a caller too busy to read the reply. Set to true to
+   * publish event-loop delay alongside the other OpenTelemetry signals.
    */
   monitorEventLoop?: boolean;
   affiliate: string;
@@ -210,7 +210,7 @@ export class ClassifierSdk extends EventEmitter {
     deploymentId,
     affiliate,
     authentication,
-    monitorEventLoop = true,
+    monitorEventLoop = false,
   }: ClassifierSdkOptions) {
     super();
     if (monitorEventLoop) {
